@@ -53,7 +53,7 @@ public class ChunkData extends MiniChunkData
 		IntTag zPos = (IntTag)m.get( "zPos" );
 		
 		ChunkData cd = new ChunkData(
-			xPos.getValue().intValue(), 0, zPos.getValue().intValue(),
+			16*xPos.getValue().intValue(), 0, 16*zPos.getValue().intValue(),
 			16, 128, 16
 		);
 		
