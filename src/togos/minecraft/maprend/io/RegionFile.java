@@ -116,6 +116,7 @@ public class RegionFile
             }
 
             if ((file.length() & 0xfff) != 0) {
+            	file.seek(file.length());
                 /* the file size is not a multiple of 4KB, grow it */
                 for (int i = 0; i < (file.length() & 0xfff); ++i) {
                     file.write((byte) 0);
