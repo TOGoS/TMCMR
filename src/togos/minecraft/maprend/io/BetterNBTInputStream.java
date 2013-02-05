@@ -181,6 +181,15 @@ public final class BetterNBTInputStream implements Closeable {
 			}
 			
 			return new CompoundTag(name, tagMap);
+		case 11: // Int array
+			length = is.readInt();
+			byte[] intData = new byte[length*4];
+			is.readFully(intData);
+			int[] ints = new int[length];
+			for( int i=0; i<length; ++i ) {
+				ints[i] = (intData[i*4]<<24)|(intData[i*4+1]<<16)|(intData[i*4+2]<<8)|(intData[i*4+3]<<0);
+			}
+			return new IntArrayTag( name, ints );
 		default:
 			throw new IOException("Invalid tag type: " + type + ".");
 		}

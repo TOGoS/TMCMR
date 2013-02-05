@@ -7,41 +7,50 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.Iterator;
 
 import javax.imageio.ImageIO;
 
+import org.jnbt.ByteArrayTag;
+import org.jnbt.ByteTag;
 import org.jnbt.CompoundTag;
+import org.jnbt.ListTag;
 
 import togos.minecraft.maprend.RegionMap.Region;
 import togos.minecraft.maprend.io.BetterNBTInputStream;
 import togos.minecraft.maprend.io.RegionFile;
-import togos.minecraft.maprend.world.ChunkData;
 import togos.minecraft.maprend.world.Material;
 import togos.minecraft.maprend.world.Materials;
 
 public class RegionRenderer
 {
-	protected void getChunkSurfaceData( ChunkData cd, byte[] type, byte[] height, int dx, int dy, int dwidth ) {
-		byte[] blockData = cd.blockData;
+	public boolean debug;
+	
+	protected void getChunkSurfaceData( CompoundTag levelTag, short[] type, short[] height, int dx, int dz, int dwidth ) {
+		for( int x=0; x<16; ++x ) for( int z=0; z<16; ++z ) height[(x+dx)+(z+dz)*dwidth] = 0;
 		
-		for( int z=0; z<16; ++z ) {
-			for( int x=0; x<16; ++x ) {
-				for( int y=127; y>=0; --y ) {
-					int blockIdx = y + z*128 + x*16*128;
-					
-					byte blockType = blockData[blockIdx];
-					if( blockType == 0 ) continue;
-					
-					int didx = (dy+z)*dwidth+dx+x; 
-					type[didx] = blockType;
-					height[didx] = (byte)y;
-					break;
+		for( Iterator i = ((ListTag)levelTag.getValue().get("Sections")).getValue().iterator(); i.hasNext(); ) {
+			CompoundTag sectionInfo = (CompoundTag)i.next();
+			int sectionIndex = ((ByteTag)sectionInfo.getValue().get("Y")).getValue().intValue();
+			byte[] blockIds = ((ByteArrayTag)sectionInfo.getValue().get("Blocks")).getValue();
+			for( int y=0; y<16; ++y ) {
+				for( int z=0; z<16; ++z ) {
+					for( int x=0; x<16; ++x ) {
+						int blockY = y+sectionIndex*16;
+						byte blockType = blockIds[y*256+z*16+x];
+						// TODO: Add in value from 'Add' << 8
+						int dIdx = (x+dx)+(z+dz)*dwidth;
+						if( blockType != 0 && blockY > height[dIdx] ) {
+							height[dIdx] = (byte)blockY;
+							type[dIdx] = blockType;
+						}
+					}
 				}
 			}
 		}
 	}
 	
-	protected void getRegionSurfaceData( String filename, RegionFile rf, byte[] type, byte[] height ) {
+	protected void getRegionSurfaceData( String filename, RegionFile rf, short[] type, short[] height ) {
 		for( int cz=0; cz<32; ++cz ) {
 			for( int cx=0; cx<32; ++cx ) {
 				DataInputStream cis = rf.getChunkDataInputStream(cx,cz);
@@ -51,8 +60,7 @@ public class RegionRenderer
 					BetterNBTInputStream nis = new BetterNBTInputStream(cis);
 					CompoundTag rootTag = (CompoundTag)nis.readTag();
 					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
-					ChunkData cd = ChunkData.fromTag( levelTag );
-					getChunkSurfaceData( cd, type, height, cx*16, cz*16, 512 );
+					getChunkSurfaceData( levelTag, type, height, cx*16, cz*16, 512 );
 				} catch( IOException e ) {
 					System.err.println("Error reading chunk from "+filename+" at "+cx+","+cz);
 					e.printStackTrace();
@@ -89,7 +97,7 @@ public class RegionRenderer
 	}
 	
 	
-	protected void shade( byte[] height, int[] color ) {
+	protected void shade( short[] height, int[] color ) {
 		int width=512, depth=512;
 
 		int idx = 0;
@@ -121,9 +129,9 @@ public class RegionRenderer
 	public BufferedImage render( String filename, RegionFile rf ) {
 		int width=512, depth=512;
 		
-		byte[] surfaceType   = new byte[width*depth];
-		byte[] surfaceHeight = new byte[width*depth];
-		int[ ] surfaceColor  = new  int[width*depth];
+		short[] surfaceType   = new short[width*depth];
+		short[] surfaceHeight = new short[width*depth];
+		int[  ] surfaceColor  = new    int[width*depth];
 		getRegionSurfaceData( filename, rf, surfaceType, surfaceHeight );
 		
 		Material[] materials = Materials.byBlockType;
@@ -146,6 +154,15 @@ public class RegionRenderer
 		return bi;
 	}
 	
+	protected static String pad( String v, int targetLength ) {
+		while( v.length() < targetLength ) v = " "+v;
+		return v;
+	}
+	
+	protected static String pad( int v, int targetLength ) {
+		return pad( ""+v, targetLength );
+	}
+		
 	public void renderAll( RegionMap rm, String outputDirname, boolean force ) {
 		Region[] regions = rm.xzMap();
 		
@@ -156,18 +173,20 @@ public class RegionRenderer
 			Region r = regions[i];
 			if( r == null ) continue;
 			
+			if( debug ) System.err.print("Region "+pad(r.rx, 4)+", "+pad(r.rz, 4)+"...");
+			
 			String imageFilename = "tile."+r.rx+"."+r.rz+".png";
 			File regionFile = new File( r.regionFile );
 			File imageFile = new File( outputDirname+"/"+imageFilename );
 			
 			if( imageFile.exists() ) {
 				if( !force && imageFile.lastModified() > regionFile.lastModified() ) {
-					//System.err.println(imageFilename+" already up-to-date");
+					if( debug ) System.err.println("already up-to-date");
 					continue;
 				}
 				imageFile.delete();
 			}
-			//System.err.println("Generating "+imageFilename+"...");
+			if( debug ) System.err.println("generating "+imageFilename+"...");
 			
 			BufferedImage bi = render( r.regionFile, new RegionFile( regionFile ) );
 			
@@ -179,7 +198,7 @@ public class RegionRenderer
 	        }
 		}
 		
-		//System.err.println("Writing index...");
+		if( debug ) System.err.println("Writing index...");
 		try {
 			Writer w = new OutputStreamWriter(new FileOutputStream(new File(outputDirname+"/tiles.html")));
 			w.write("<html><body style=\"background:black\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n");
@@ -207,12 +226,14 @@ public class RegionRenderer
 	
 	public static final String USAGE =
 		"Usage: TMCMR <region-dir> -o <output-dir> [-f]\n" +
-		"  -f  ; force re-render even when images are newer than regions";
+		"  -f     ; force re-render even when images are newer than regions\n" +
+		"  -debug ; be chatty";
 	
 	public static void main( String[] args ) {
 		String regionDirname = null;
 		String outputDirname = null;
 		boolean force = false;
+		boolean debug = false;
 		
 		for( int i=0; i<args.length; ++i ) {
 			if( args[i].charAt(0) != '-' ) {
@@ -225,6 +246,8 @@ public class RegionRenderer
 				outputDirname = args[++i];
 			} else if( "-f".equals(args[i]) ) {
 				force = true;
+			} else if( "-debug".equals(args[i]) ) {
+				debug = true;
 			} else {
 				System.err.println("Unrecognised argument: "+args[i]);
 				System.err.println(USAGE);
@@ -245,6 +268,7 @@ public class RegionRenderer
 		
 		RegionMap rm = RegionMap.load( new File(regionDirname) );
 		RegionRenderer rr = new RegionRenderer();
+		rr.debug = debug;
 		rr.renderAll( rm, outputDirname, force );
 	}
 }

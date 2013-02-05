@@ -37,7 +37,7 @@ public class RegionMap
 		if( r.rz > maxZ ) maxZ = r.rz;
 	}
 		
-	static final Pattern rfpat = Pattern.compile("^r\\.(-?\\d+)\\.(-?\\d+)\\.mcr$");
+	static final Pattern rfpat = Pattern.compile("^r\\.(-?\\d+)\\.(-?\\d+)\\.mca$");
 	
 	public static RegionMap load( File dir ) {
 		RegionMap rm = new RegionMap();
