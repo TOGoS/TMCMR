@@ -181,7 +181,7 @@ public class RegionRenderer
 			
 			if( imageFile.exists() ) {
 				if( !force && imageFile.lastModified() > regionFile.lastModified() ) {
-					if( debug ) System.err.println("already up-to-date");
+					if( debug ) System.err.println("image already up-to-date");
 					continue;
 				}
 				imageFile.delete();
