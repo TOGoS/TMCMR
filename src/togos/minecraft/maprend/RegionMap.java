@@ -12,13 +12,16 @@ public class RegionMap
 {
 	static class Region {
 		public int rx, rz;
-		public String regionFile;
+		public File regionFile;
+		public File imageFile;
 	}
 	
 	public List regions = new ArrayList();
 	public int minX=Integer.MAX_VALUE, minZ=Integer.MAX_VALUE, maxX=Integer.MIN_VALUE, maxZ=Integer.MIN_VALUE;
 	
 	public Region[] xzMap() {
+		if( minX == Integer.MAX_VALUE ) return new Region[0];
+		
 		int width = maxX-minX+1;
 		int depth = maxZ-minZ+1;
 		Region[] m = new Region[width*depth];
@@ -27,6 +30,14 @@ public class RegionMap
 			m[ (r.rx-minX) + (r.rz-minZ)*width ] = r;
 		}
 		return m;
+	}
+	
+	public Region regionAt( int rx, int rz ) {
+		for( Iterator i=regions.iterator(); i.hasNext(); ) {
+			Region r = (Region)i.next();
+			if( r.rx == rx && r.rz == rz ) return r;
+		}
+		return null;
 	}
 	
 	public void addRegion( Region r ) {
@@ -49,7 +60,7 @@ public class RegionMap
 				Region r = new Region();
 				r.rx = Integer.parseInt(m.group(1));
 				r.rz = Integer.parseInt(m.group(2));
-				r.regionFile = files[i].getPath();
+				r.regionFile = files[i];
 				rm.addRegion( r );
 			}
 		}

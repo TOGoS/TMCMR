@@ -18,6 +18,7 @@ import org.jnbt.ListTag;
 
 import togos.minecraft.maprend.RegionMap.Region;
 import togos.minecraft.maprend.io.BetterNBTInputStream;
+import togos.minecraft.maprend.io.ContentStore;
 import togos.minecraft.maprend.io.RegionFile;
 import togos.minecraft.maprend.world.Material;
 import togos.minecraft.maprend.world.Materials;
@@ -50,7 +51,7 @@ public class RegionRenderer
 		}
 	}
 	
-	protected void getRegionSurfaceData( String filename, RegionFile rf, short[] type, short[] height ) {
+	protected void getRegionSurfaceData( File file, RegionFile rf, short[] type, short[] height ) {
 		for( int cz=0; cz<32; ++cz ) {
 			for( int cx=0; cx<32; ++cx ) {
 				DataInputStream cis = rf.getChunkDataInputStream(cx,cz);
@@ -62,7 +63,7 @@ public class RegionRenderer
 					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
 					getChunkSurfaceData( levelTag, type, height, cx*16, cz*16, 512 );
 				} catch( IOException e ) {
-					System.err.println("Error reading chunk from "+filename+" at "+cx+","+cz);
+					System.err.println("Error reading chunk from "+file+" at "+cx+","+cz);
 					e.printStackTrace();
 				}
 			}
@@ -126,13 +127,13 @@ public class RegionRenderer
 		}
 	}
 	
-	public BufferedImage render( String filename, RegionFile rf ) {
+	public BufferedImage render( File file, RegionFile rf ) {
 		int width=512, depth=512;
 		
 		short[] surfaceType   = new short[width*depth];
 		short[] surfaceHeight = new short[width*depth];
 		int[  ] surfaceColor  = new    int[width*depth];
-		getRegionSurfaceData( filename, rf, surfaceType, surfaceHeight );
+		getRegionSurfaceData( file, rf, surfaceType, surfaceHeight );
 		
 		Material[] materials = Materials.byBlockType;
 		
@@ -169,6 +170,10 @@ public class RegionRenderer
 		File outputDir = new File(outputDirname);
 		if( !outputDir.exists() ) outputDir.mkdirs();
 		
+		if( regions.length == 0 ) {
+			System.err.println("Warning: no regions found!");
+		}
+		
 		for( int i=0; i<regions.length; ++i ) {
 			Region r = regions[i];
 			if( r == null ) continue;
@@ -176,8 +181,8 @@ public class RegionRenderer
 			if( debug ) System.err.print("Region "+pad(r.rx, 4)+", "+pad(r.rz, 4)+"...");
 			
 			String imageFilename = "tile."+r.rx+"."+r.rz+".png";
-			File regionFile = new File( r.regionFile );
-			File imageFile = new File( outputDirname+"/"+imageFilename );
+			File regionFile = r.regionFile;
+			File imageFile = r.imageFile = new File( outputDirname+"/"+imageFilename );
 			
 			if( imageFile.exists() ) {
 				if( !force && imageFile.lastModified() > regionFile.lastModified() ) {
@@ -197,7 +202,9 @@ public class RegionRenderer
 		        e.printStackTrace();
 	        }
 		}
-		
+	}
+	
+	public void createTileHtml( RegionMap rm, String outputDirname ) {
 		if( debug ) System.err.println("Writing index...");
 		try {
 			Writer w = new OutputStreamWriter(new FileOutputStream(new File(outputDirname+"/tiles.html")));
@@ -224,16 +231,28 @@ public class RegionRenderer
 		}
 	}
 	
+	public void createImageTree( RegionMap rm ) {
+		if( debug ) System.err.println("Composing image tree...");
+		ImageTreeComposer itc = new ImageTreeComposer(new ContentStore());
+		System.out.println( itc.compose( rm ) );
+	}
+	
 	public static final String USAGE =
 		"Usage: TMCMR <region-dir> -o <output-dir> [-f]\n" +
 		"  -f     ; force re-render even when images are newer than regions\n" +
-		"  -debug ; be chatty";
+		"  -debug ; be chatty\n" +
+		"  -create-image-tree ; generate a PicGrid-compatible image tree\n" +
+		"\n" +
+		"Compound image tree blobs will be written to ~/.ccouch/data/tmcmr/\n" +
+		"Compound images can then be rendered with PicGrid.";
 	
 	public static void main( String[] args ) {
 		String regionDirname = null;
 		String outputDirname = null;
 		boolean force = false;
 		boolean debug = false;
+		boolean createTileHtml = true;
+		boolean createImageTree = false;
 		
 		for( int i=0; i<args.length; ++i ) {
 			if( args[i].charAt(0) != '-' ) {
@@ -248,6 +267,8 @@ public class RegionRenderer
 				force = true;
 			} else if( "-debug".equals(args[i]) ) {
 				debug = true;
+			} else if( "-create-image-tree".equals(args[i]) ) {
+				createImageTree = true;
 			} else {
 				System.err.println("Unrecognised argument: "+args[i]);
 				System.err.println(USAGE);
@@ -270,5 +291,7 @@ public class RegionRenderer
 		RegionRenderer rr = new RegionRenderer();
 		rr.debug = debug;
 		rr.renderAll( rm, outputDirname, force );
+		if( createTileHtml ) rr.createTileHtml( rm, outputDirname );
+		if( createImageTree ) rr.createImageTree( rm );
 	}
 }
