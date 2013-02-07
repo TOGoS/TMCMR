@@ -13,8 +13,8 @@ import togos.minecraft.maprend.world.Material;
 
 public class Materials
 {
-	static final int BLOCK_TYPE_MASK = 0xFF;
-	static final int BLOCK_TYPE_COUNT = 256;
+	public static final int BLOCK_TYPE_MASK = 0xFF;
+	public static final int BLOCK_TYPE_COUNT = 256;
 	
 	public static Material[] byBlockType = new Material[BLOCK_TYPE_COUNT];
 	static HashMap byName = new HashMap();

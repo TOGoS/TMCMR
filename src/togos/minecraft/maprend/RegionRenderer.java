@@ -38,7 +38,7 @@ public class RegionRenderer
 				for( int z=0; z<16; ++z ) {
 					for( int x=0; x<16; ++x ) {
 						int blockY = y+sectionIndex*16;
-						byte blockType = blockIds[y*256+z*16+x];
+						short blockType = (short)(blockIds[y*256+z*16+x]&0xFF);
 						// TODO: Add in value from 'Add' << 8
 						int dIdx = (x+dx)+(z+dz)*dwidth;
 						if( blockType != 0 && blockY > height[dIdx] ) {
@@ -140,7 +140,7 @@ public class RegionRenderer
 		int i = 0;
 		for( int z=0; z<depth; ++z ) {
 			for( int x=0; x<width; ++x, ++i ) {
-				surfaceColor[i] = materials[surfaceType[i]].color;
+				surfaceColor[i] = materials[surfaceType[i]&Materials.BLOCK_TYPE_MASK].color;
 			}
 		}
 		
