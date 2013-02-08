@@ -20,12 +20,17 @@ import togos.minecraft.maprend.RegionMap.Region;
 import togos.minecraft.maprend.io.BetterNBTInputStream;
 import togos.minecraft.maprend.io.ContentStore;
 import togos.minecraft.maprend.io.RegionFile;
-import togos.minecraft.maprend.world.Material;
-import togos.minecraft.maprend.world.Materials;
 
 public class RegionRenderer
 {
-	public boolean debug;
+	public final boolean debug;
+	public final int[] colorMap;
+	
+	public RegionRenderer( int[] colorMap, boolean debug ) {
+		if( colorMap == null ) throw new RuntimeException("colorMap cannot be null");
+		this.colorMap = colorMap;
+		this.debug = debug;
+	}
 	
 	protected void getChunkSurfaceData( CompoundTag levelTag, short[] type, short[] height, int dx, int dz, int dwidth ) {
 		for( int x=0; x<16; ++x ) for( int z=0; z<16; ++z ) height[(x+dx)+(z+dz)*dwidth] = 0;
@@ -136,12 +141,10 @@ public class RegionRenderer
 		int[  ] surfaceColor  = new    int[width*depth];
 		getRegionSurfaceData( file, rf, surfaceType, surfaceHeight );
 		
-		Material[] materials = Materials.byBlockType;
-		
 		int i = 0;
 		for( int z=0; z<depth; ++z ) {
 			for( int x=0; x<width; ++x, ++i ) {
-				surfaceColor[i] = materials[surfaceType[i]&Materials.BLOCK_TYPE_MASK].color;
+				surfaceColor[i] = colorMap[surfaceType[i]&ColorMap.INDEX_MASK];
 			}
 		}
 		
@@ -254,6 +257,7 @@ public class RegionRenderer
 		boolean debug = false;
 		boolean createTileHtml = true;
 		boolean createImageTree = false;
+		int[] colorMap = null;
 		
 		for( int i=0; i<args.length; ++i ) {
 			if( args[i].charAt(0) != '-' ) {
@@ -288,9 +292,10 @@ public class RegionRenderer
 			System.exit(1);
 		}
 		
+		if( colorMap == null ) colorMap = ColorMap.getDefaultColorMap();
+		
 		RegionMap rm = RegionMap.load( new File(regionDirname) );
-		RegionRenderer rr = new RegionRenderer();
-		rr.debug = debug;
+		RegionRenderer rr = new RegionRenderer( colorMap, debug );
 		rr.renderAll( rm, outputDirname, force );
 		if( createTileHtml ) rr.createTileHtml( rm, outputDirname );
 		if( createImageTree ) rr.createImageTree( rm );
