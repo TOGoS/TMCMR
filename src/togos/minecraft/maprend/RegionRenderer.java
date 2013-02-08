@@ -25,56 +25,50 @@ public class RegionRenderer
 {
 	public final boolean debug;
 	public final int[] colorMap;
+	public final int air16Color; // Color of 16 air blocks stacked
+	/**
+	 * Alpha below which blocks are considered transparent for purposes of shading
+	 * (i.e. blocks with alpha < this will not be shaded, but blocks below them will be)
+	 */
+	private int shadeOpacityCutoff = 0x20; 
 	
 	public RegionRenderer( int[] colorMap, boolean debug ) {
 		if( colorMap == null ) throw new RuntimeException("colorMap cannot be null");
 		this.colorMap = colorMap;
+		this.air16Color = overlay( 0, colorMap[0], 16 );
 		this.debug = debug;
 	}
 	
-	protected void getChunkSurfaceData( CompoundTag levelTag, short[] type, short[] height, int dx, int dz, int dwidth ) {
-		for( int x=0; x<16; ++x ) for( int z=0; z<16; ++z ) height[(x+dx)+(z+dz)*dwidth] = 0;
+	/**
+	 * @param levelTag
+	 * @param maxSectionCount
+	 * @param sectionData block ids for non-empty sections will be written to sectionData[sectionIndex][blockIndex]
+	 * @param sectionsUsed sectionsUsed[sectionIndex] will be set to true for non-empty sections
+	 */
+	protected static void loadChunkData( CompoundTag levelTag, int maxSectionCount, short[][] sectionData, boolean[] sectionsUsed ) {
+		for( int i=0; i<maxSectionCount; ++i ) {
+			sectionsUsed[i] = false;
+		}
 		
 		for( Iterator i = ((ListTag)levelTag.getValue().get("Sections")).getValue().iterator(); i.hasNext(); ) {
 			CompoundTag sectionInfo = (CompoundTag)i.next();
 			int sectionIndex = ((ByteTag)sectionInfo.getValue().get("Y")).getValue().intValue();
-			byte[] blockIds = ((ByteArrayTag)sectionInfo.getValue().get("Blocks")).getValue();
+			byte[] blockIdsLow = ((ByteArrayTag)sectionInfo.getValue().get("Blocks")).getValue();
+			short[] destSectionData = sectionData[sectionIndex];
+			sectionsUsed[sectionIndex] = true;
 			for( int y=0; y<16; ++y ) {
 				for( int z=0; z<16; ++z ) {
 					for( int x=0; x<16; ++x ) {
-						int blockY = y+sectionIndex*16;
-						short blockType = (short)(blockIds[y*256+z*16+x]&0xFF);
+						short blockType = (short)(blockIdsLow[y*256+z*16+x]&0xFF);
 						// TODO: Add in value from 'Add' << 8
-						int dIdx = (x+dx)+(z+dz)*dwidth;
-						if( blockType != 0 && blockY > height[dIdx] ) {
-							height[dIdx] = (byte)blockY;
-							type[dIdx] = blockType;
-						}
+						
+						destSectionData[y*256+z*16+x] = blockType;
 					}
 				}
 			}
 		}
 	}
-	
-	protected void getRegionSurfaceData( RegionFile rf, short[] type, short[] height ) {
-		for( int cz=0; cz<32; ++cz ) {
-			for( int cx=0; cx<32; ++cx ) {
-				DataInputStream cis = rf.getChunkDataInputStream(cx,cz);
-				if( cis == null ) continue;
-				
-				try {
-					BetterNBTInputStream nis = new BetterNBTInputStream(cis);
-					CompoundTag rootTag = (CompoundTag)nis.readTag();
-					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
-					getChunkSurfaceData( levelTag, type, height, cx*16, cz*16, 512 );
-				} catch( IOException e ) {
-					System.err.println("Error reading chunk from "+rf.getFile()+" at "+cx+","+cz);
-					e.printStackTrace();
-				}
-			}
-		}
-	}	
-	
+		
 	//// Handy color-manipulation functions ////
 	
 	protected static final int clampByte( int component ) {
@@ -95,6 +89,8 @@ public class RegionRenderer
 		return (color >> shift) & 0xFF;
 	}
 	
+	protected static final int alpha( int color ) { return component(color,24); }
+	
 	protected static final int shade( int color, int amt ) {
 		return color(
 			component( color, 24 ),
@@ -102,6 +98,44 @@ public class RegionRenderer
 			component( color,  8 ) + amt,
 			component( color,  0 ) + amt
 		);
+	}
+		
+	/**
+	 * Return the color resulting from overlaying frontColor over backColor
+	 * + Front color's RGB should *not* be pre-multiplied by alpha.
+	 * - Back color must have RGB components pre-multiplied by alpha.
+	 * - Resulting color will be pre-multiplied by alpha.
+	 */
+	protected static final int overlay( int color, int overlayColor ) {
+		final int overlayOpacity = component( overlayColor, 24 );
+		final int overlayTransparency = 255-overlayOpacity;
+		
+		return color(
+			overlayOpacity                            + (component( color, 24 )*overlayTransparency)/255,
+			(component(overlayColor,16)*overlayOpacity + component( color, 16 )*overlayTransparency)/255,
+			(component(overlayColor, 8)*overlayOpacity + component( color,  8 )*overlayTransparency)/255,
+			(component(overlayColor, 0)*overlayOpacity + component( color,  0 )*overlayTransparency)/255
+		);
+	}
+	
+	protected static final int overlay( int color, int frontColor, int repeat ) {
+		for( int i=0; i<repeat; ++i ) color = overlay(color,frontColor);
+		return color;
+	}
+	
+	protected static final int demultiplyAlpha( int color ) {
+		final int alpha = component(color, 24);
+		
+		return color(
+			alpha,
+			component(color, 16) * 255 / alpha,
+			component(color,  8) * 255 / alpha,
+			component(color,  0) * 255 / alpha
+		);
+	}
+	
+	protected static void demultiplyAlpha( int[] color ) {
+		for( int i=color.length-1; i>=0; --i ) color[i] = demultiplyAlpha(color[i]);
 	}
 	
 	protected void shade( short[] height, int[] color ) {
@@ -133,21 +167,74 @@ public class RegionRenderer
 		}
 	}
 	
+	//// Rendering ////
+	
+	/**
+	 * @param rf
+	 * @param colors color data will be written here
+	 * @param heights height data (height of top of topmost non-transparent block) will be written here
+	 */
+	protected void preRender( RegionFile rf, int[] colors, short[] heights ) {
+		int maxSectionCount = 16;
+		short[][] sectionData = new short[maxSectionCount][16*16*16];
+		boolean[] usedSections = new boolean[maxSectionCount]; 
+		
+		for( int cz=0; cz<32; ++cz ) {
+			for( int cx=0; cx<32; ++cx ) {				
+				DataInputStream cis = rf.getChunkDataInputStream(cx,cz);
+				if( cis == null ) continue;
+				
+				try {
+					BetterNBTInputStream nis = new BetterNBTInputStream(cis);
+					CompoundTag rootTag = (CompoundTag)nis.readTag();
+					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
+					loadChunkData( levelTag, maxSectionCount, sectionData, usedSections );
+					
+					for( int z=0; z<16; ++z ) {
+						for( int x=0; x<16; ++x ) {
+							int pixelColor = 0;
+							short pixelHeight = 0;
+							
+							for( int s=0; s<maxSectionCount; ++s ) {
+								if( usedSections[s] ) {
+									short[] blocks = sectionData[s];
+									for( int y=0; y<16; ++y ) {
+										final short absY = (short)(s*16+y+1);
+										// TODO: height-based shading?
+										
+										final short blockId = blocks[y*256+z*16+x];
+										final int blockColor = colorMap[blockId&0xFFFF];
+										pixelColor = overlay( pixelColor, blockColor );
+										
+										if( alpha(blockColor) >= shadeOpacityCutoff  ) pixelHeight = absY;
+									}
+								} else {
+									pixelColor = overlay( pixelColor, air16Color );
+								}
+							}
+
+							final int dIdx = 512*(cz*16+z)+16*cx+x; 
+							colors[dIdx] = pixelColor;
+							heights[dIdx] = pixelHeight;
+						}
+					}
+					
+				} catch( IOException e ) {
+					System.err.println("Error reading chunk from "+rf.getFile()+" at "+cx+","+cz);
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+	
 	public BufferedImage render( RegionFile rf ) {
 		int width=512, depth=512;
 		
-		short[] surfaceType   = new short[width*depth];
+		int[] surfaceColor  = new int[width*depth];
 		short[] surfaceHeight = new short[width*depth];
-		int[  ] surfaceColor  = new    int[width*depth];
-		getRegionSurfaceData( rf, surfaceType, surfaceHeight );
 		
-		int i = 0;
-		for( int z=0; z<depth; ++z ) {
-			for( int x=0; x<width; ++x, ++i ) {
-				surfaceColor[i] = colorMap[surfaceType[i]&ColorMap.INDEX_MASK];
-			}
-		}
-		
+		preRender( rf, surfaceColor, surfaceHeight );
+		demultiplyAlpha( surfaceColor );
 		shade( surfaceHeight, surfaceColor );
 		
 		BufferedImage bi = new BufferedImage( width, depth, BufferedImage.TYPE_INT_ARGB );

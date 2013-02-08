@@ -1,4 +1,16 @@
-default	0xFF000000
+# This file defines colors for blocks!
+# You can use your own color map using the -color-map <file> argument.
+#
+# The format is block ID, tab, color, optionally followed by another tab, a pound, and a comment.
+# Tabs are important; don't use spaces or commas!
+#
+# Empty lines and lines starting with # are ignored, too.
+#
+# 'default' must appear before other block ID -> color mappings
+# Any block with an ID not specifically mapped to a color after the default
+# mapping will be colored with the default color.
+
+default	0xFFFF00FF
 0x0000	0x00000000	# Air
 0x0001	0xFF888888
 0x0002	0xFF008800
@@ -8,14 +20,14 @@ default	0xFF000000
 0x0006	0xFF00AA00
 0x0007	0xFF444444
 0x0008	0xFF0000AA
-0x0009	0xFF004088	# Water
+0x0009	0x40002066	# Water
 0x000A	0xFFFF4400
 0x000B	0xFFFF4411
 0x000C	0xFFAAAA66
 0x000D	0xFF664444
 0x0011	0xFF883322
 0x0012	0xFF006633
-0x0014	0xFF77AAAA
+0x0014	0x2077AAAA	# Glass?
 0x0015	0xFF546283
 0x0016	0xFF1741A9
 0x001F	0xFF00AA00
@@ -23,6 +35,6 @@ default	0xFF000000
 0x0032	0xFFFFFFEE
 0x0033	0xFFFFDDCC
 0x004E	0xFFCCCCCC
-0x004F	0xFF7799AA
+0x004F	0x807799AA	# Ice?
 0x0050	0xFFEEEEEE
 0x0051	0xFF226622
