@@ -295,7 +295,7 @@ public class RegionRenderer
 	}
 	
 	public void createTileHtml( RegionMap rm, String outputDirname ) {
-		if( debug ) System.err.println("Writing index...");
+		if( debug ) System.err.println("Writing HTML tiles...");
 		try {
 			Writer w = new OutputStreamWriter(new FileOutputStream(new File(outputDirname+"/tiles.html")));
 			w.write("<html><body style=\"background:black\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n");
@@ -337,13 +337,17 @@ public class RegionRenderer
 		"Compound image tree blobs will be written to ~/.ccouch/data/tmcmr/\n" +
 		"Compound images can then be rendered with PicGrid.";
 	
+	protected static final boolean booleanValue( Boolean b, boolean defalt ) {
+		return b == null ? defalt : b.booleanValue();
+	}
+	
 	public static void main( String[] args ) throws Exception {
 		String regionDirname = null;
 		String outputDirname = null;
 		boolean force = false;
 		boolean debug = false;
-		boolean createTileHtml = true;
-		boolean createImageTree = false;
+		Boolean createTileHtml = null;
+		Boolean createImageTree = null;
 		String colorMapFile = null;
 		
 		for( int i=0; i<args.length; ++i ) {
@@ -359,8 +363,10 @@ public class RegionRenderer
 				force = true;
 			} else if( "-debug".equals(args[i]) ) {
 				debug = true;
+			} else if( "-create-tile-html".equals(args[i]) ) {
+				createTileHtml = Boolean.TRUE;
 			} else if( "-create-image-tree".equals(args[i]) ) {
-				createImageTree = true;
+				createImageTree = Boolean.TRUE;
 			} else if( "-color-map".equals(args[i]) ) {
 				colorMapFile = args[++i];
 			} else {
@@ -384,10 +390,16 @@ public class RegionRenderer
 		int[] colorMap = colorMapFile == null ? ColorMap.getDefaultColorMap() : ColorMap.load(new File(colorMapFile));
 		if( colorMap == null ) colorMap = ColorMap.getDefaultColorMap();
 		
-		RegionMap rm = RegionMap.load( new File(regionDirname) );
+		File regionDir = new File(regionDirname);
+		if( createTileHtml == null && !regionDir.isDirectory() ) createTileHtml = Boolean.FALSE;
+		
+		if( createTileHtml == null ) createTileHtml = Boolean.TRUE;
+		if( createImageTree == null ) createImageTree = Boolean.FALSE;
+		
+		RegionMap rm = RegionMap.load( regionDir );
 		RegionRenderer rr = new RegionRenderer( colorMap, debug );
 		rr.renderAll( rm, outputDirname, force );
-		if( createTileHtml ) rr.createTileHtml( rm, outputDirname );
-		if( createImageTree ) rr.createImageTree( rm );
+		if( createTileHtml.booleanValue() ) rr.createTileHtml( rm, outputDirname );
+		if( createImageTree.booleanValue() ) rr.createImageTree( rm );
 	}
 }
