@@ -56,7 +56,7 @@ public class RegionRenderer
 		}
 	}
 	
-	protected void getRegionSurfaceData( File file, RegionFile rf, short[] type, short[] height ) {
+	protected void getRegionSurfaceData( RegionFile rf, short[] type, short[] height ) {
 		for( int cz=0; cz<32; ++cz ) {
 			for( int cx=0; cx<32; ++cx ) {
 				DataInputStream cis = rf.getChunkDataInputStream(cx,cz);
@@ -68,12 +68,12 @@ public class RegionRenderer
 					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
 					getChunkSurfaceData( levelTag, type, height, cx*16, cz*16, 512 );
 				} catch( IOException e ) {
-					System.err.println("Error reading chunk from "+file+" at "+cx+","+cz);
+					System.err.println("Error reading chunk from "+rf.getFile()+" at "+cx+","+cz);
 					e.printStackTrace();
 				}
 			}
 		}
-	}
+	}	
 	
 	//// Handy color-manipulation functions ////
 	
@@ -133,13 +133,13 @@ public class RegionRenderer
 		}
 	}
 	
-	public BufferedImage render( File file, RegionFile rf ) {
+	public BufferedImage render( RegionFile rf ) {
 		int width=512, depth=512;
 		
 		short[] surfaceType   = new short[width*depth];
 		short[] surfaceHeight = new short[width*depth];
 		int[  ] surfaceColor  = new    int[width*depth];
-		getRegionSurfaceData( file, rf, surfaceType, surfaceHeight );
+		getRegionSurfaceData( rf, surfaceType, surfaceHeight );
 		
 		int i = 0;
 		for( int z=0; z<depth; ++z ) {
@@ -185,11 +185,10 @@ public class RegionRenderer
 			if( debug ) System.err.print("Region "+pad(r.rx, 4)+", "+pad(r.rz, 4)+"...");
 			
 			String imageFilename = "tile."+r.rx+"."+r.rz+".png";
-			File regionFile = r.regionFile;
 			File imageFile = r.imageFile = new File( outputDirname+"/"+imageFilename );
 			
 			if( imageFile.exists() ) {
-				if( !force && imageFile.lastModified() > regionFile.lastModified() ) {
+				if( !force && imageFile.lastModified() > r.regionFile.lastModified() ) {
 					if( debug ) System.err.println("image already up-to-date");
 					continue;
 				}
@@ -197,7 +196,7 @@ public class RegionRenderer
 			}
 			if( debug ) System.err.println("generating "+imageFilename+"...");
 			
-			BufferedImage bi = render( r.regionFile, new RegionFile( regionFile ) );
+			BufferedImage bi = render( new RegionFile( r.regionFile ) );
 			
 			try {
 		        ImageIO.write(bi, "png", imageFile);

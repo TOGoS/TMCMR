@@ -152,6 +152,10 @@ public class RegionFile
             e.printStackTrace();
         }
     }
+    
+    public File getFile() {
+    	return fileName;
+    }
 
     /* the modification date of the region file when it was first opened */
     public long lastModified() {
