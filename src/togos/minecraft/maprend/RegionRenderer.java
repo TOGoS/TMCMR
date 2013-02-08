@@ -126,7 +126,7 @@ public class RegionRenderer
 	protected static final int demultiplyAlpha( int color ) {
 		final int alpha = component(color, 24);
 		
-		return color(
+		return alpha == 0 ? 0 : color(
 			alpha,
 			component(color, 16) * 255 / alpha,
 			component(color,  8) * 255 / alpha,
