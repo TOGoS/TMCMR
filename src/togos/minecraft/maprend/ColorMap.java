@@ -1,6 +1,8 @@
 package togos.minecraft.maprend;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
@@ -33,6 +35,15 @@ public class ColorMap
 			}
 		}
 		return map;
+	}
+	
+	public static int[] load( File f ) throws IOException {
+		BufferedReader br = new BufferedReader(new FileReader(f));
+		try {
+			return load(br);
+		} finally {
+			br.close();
+		}
 	}
 	
 	public static int[] getDefaultColorMap() {

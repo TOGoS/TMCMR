@@ -245,19 +245,20 @@ public class RegionRenderer
 		"Usage: TMCMR <region-dir> -o <output-dir> [-f]\n" +
 		"  -f     ; force re-render even when images are newer than regions\n" +
 		"  -debug ; be chatty\n" +
+		"  -color-map <file>  ; load a custom color map from the specified file\n" +
 		"  -create-image-tree ; generate a PicGrid-compatible image tree\n" +
 		"\n" +
 		"Compound image tree blobs will be written to ~/.ccouch/data/tmcmr/\n" +
 		"Compound images can then be rendered with PicGrid.";
 	
-	public static void main( String[] args ) {
+	public static void main( String[] args ) throws Exception {
 		String regionDirname = null;
 		String outputDirname = null;
 		boolean force = false;
 		boolean debug = false;
 		boolean createTileHtml = true;
 		boolean createImageTree = false;
-		int[] colorMap = null;
+		String colorMapFile = null;
 		
 		for( int i=0; i<args.length; ++i ) {
 			if( args[i].charAt(0) != '-' ) {
@@ -274,6 +275,8 @@ public class RegionRenderer
 				debug = true;
 			} else if( "-create-image-tree".equals(args[i]) ) {
 				createImageTree = true;
+			} else if( "-color-map".equals(args[i]) ) {
+				colorMapFile = args[++i];
 			} else {
 				System.err.println("Unrecognised argument: "+args[i]);
 				System.err.println(USAGE);
@@ -292,6 +295,7 @@ public class RegionRenderer
 			System.exit(1);
 		}
 		
+		int[] colorMap = colorMapFile == null ? ColorMap.getDefaultColorMap() : ColorMap.load(new File(colorMapFile));
 		if( colorMap == null ) colorMap = ColorMap.getDefaultColorMap();
 		
 		RegionMap rm = RegionMap.load( new File(regionDirname) );
