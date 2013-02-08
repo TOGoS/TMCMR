@@ -78,8 +78,9 @@ public class RegionRenderer
 		return component;
 	}
 	
-	protected static final int color( int r, int g, int b ) {
-		return 0xFF000000 |
+	protected static final int color( int a, int r, int g, int b ) {
+		return
+			(clampByte(a) << 24) |
 			(clampByte(r) << 16) |
 			(clampByte(g) <<  8) |
 			(clampByte(b) <<  0);
@@ -91,12 +92,12 @@ public class RegionRenderer
 	
 	protected static final int shade( int color, int amt ) {
 		return color(
+			component( color, 24 ),
 			component( color, 16 ) + amt,
 			component( color,  8 ) + amt,
 			component( color,  0 ) + amt
 		);
 	}
-	
 	
 	protected void shade( short[] height, int[] color ) {
 		int width=512, depth=512;

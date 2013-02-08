@@ -53,16 +53,27 @@ public class RegionMap
 	public static RegionMap load( File dir ) {
 		RegionMap rm = new RegionMap();
 		
-		File[] files = dir.listFiles();
-		for( int i=0; i<files.length; ++i ) {
-			Matcher m = rfpat.matcher(files[i].getName());
-			if( m.matches() ) {
-				Region r = new Region();
-				r.rx = Integer.parseInt(m.group(1));
-				r.rz = Integer.parseInt(m.group(2));
-				r.regionFile = files[i];
-				rm.addRegion( r );
+		Matcher m;
+		if( dir.isDirectory() ) { 
+			File[] files = dir.listFiles();
+			for( int i=0; i<files.length; ++i ) {
+				m = rfpat.matcher(files[i].getName());
+				if( m.matches() ) {
+					Region r = new Region();
+					r.rx = Integer.parseInt(m.group(1));
+					r.rz = Integer.parseInt(m.group(2));
+					r.regionFile = files[i];
+					rm.addRegion( r );
+				}
 			}
+		} else if( (m = rfpat.matcher(dir.getName())).matches() ) {
+			Region r = new Region();
+			r.rx = Integer.parseInt(m.group(1));
+			r.rz = Integer.parseInt(m.group(2));
+			r.regionFile = dir;
+			rm.addRegion( r );
+		} else {
+			throw new RuntimeException(dir+" does not seem to be a directory or a region file");
 		}
 		
 		return rm;
