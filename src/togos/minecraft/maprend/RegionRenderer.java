@@ -35,7 +35,7 @@ public class RegionRenderer
 	public RegionRenderer( int[] colorMap, boolean debug ) {
 		if( colorMap == null ) throw new RuntimeException("colorMap cannot be null");
 		this.colorMap = colorMap;
-		this.air16Color = overlay( 0, colorMap[0], 16 );
+		this.air16Color = Color.overlay( 0, colorMap[0], 16 );
 		this.debug = debug;
 	}
 	
@@ -71,71 +71,9 @@ public class RegionRenderer
 		
 	//// Handy color-manipulation functions ////
 	
-	protected static final int clampByte( int component ) {
-		if( component < 0 ) return 0;
-		if( component > 255 ) return 255;
-		return component;
-	}
-	
-	protected static final int color( int a, int r, int g, int b ) {
-		return
-			(clampByte(a) << 24) |
-			(clampByte(r) << 16) |
-			(clampByte(g) <<  8) |
-			(clampByte(b) <<  0);
-	}
-	
-	protected static final int component( int color, int shift ) {
-		return (color >> shift) & 0xFF;
-	}
-	
-	protected static final int alpha( int color ) { return component(color,24); }
-	
-	protected static final int shade( int color, int amt ) {
-		return color(
-			component( color, 24 ),
-			component( color, 16 ) + amt,
-			component( color,  8 ) + amt,
-			component( color,  0 ) + amt
-		);
-	}
-		
-	/**
-	 * Return the color resulting from overlaying frontColor over backColor
-	 * + Front color's RGB should *not* be pre-multiplied by alpha.
-	 * - Back color must have RGB components pre-multiplied by alpha.
-	 * - Resulting color will be pre-multiplied by alpha.
-	 */
-	protected static final int overlay( int color, int overlayColor ) {
-		final int overlayOpacity = component( overlayColor, 24 );
-		final int overlayTransparency = 255-overlayOpacity;
-		
-		return color(
-			overlayOpacity                            + (component( color, 24 )*overlayTransparency)/255,
-			(component(overlayColor,16)*overlayOpacity + component( color, 16 )*overlayTransparency)/255,
-			(component(overlayColor, 8)*overlayOpacity + component( color,  8 )*overlayTransparency)/255,
-			(component(overlayColor, 0)*overlayOpacity + component( color,  0 )*overlayTransparency)/255
-		);
-	}
-	
-	protected static final int overlay( int color, int frontColor, int repeat ) {
-		for( int i=0; i<repeat; ++i ) color = overlay(color,frontColor);
-		return color;
-	}
-	
-	protected static final int demultiplyAlpha( int color ) {
-		final int alpha = component(color, 24);
-		
-		return alpha == 0 ? 0 : color(
-			alpha,
-			component(color, 16) * 255 / alpha,
-			component(color,  8) * 255 / alpha,
-			component(color,  0) * 255 / alpha
-		);
-	}
-	
+
 	protected static void demultiplyAlpha( int[] color ) {
-		for( int i=color.length-1; i>=0; --i ) color[i] = demultiplyAlpha(color[i]);
+		for( int i=color.length-1; i>=0; --i ) color[i] = Color.demultiplyAlpha(color[i]);
 	}
 	
 	protected void shade( short[] height, int[] color ) {
@@ -162,7 +100,7 @@ public class RegionRenderer
 				
 				shade += (height[idx] - 64) / 7.0;
 				
-				color[idx] = shade( color[idx], (int)(shade*8) );
+				color[idx] = Color.shade( color[idx], (int)(shade*8) );
 			}
 		}
 	}
@@ -204,12 +142,12 @@ public class RegionRenderer
 										
 										final short blockId = blocks[y*256+z*16+x];
 										final int blockColor = colorMap[blockId&0xFFFF];
-										pixelColor = overlay( pixelColor, blockColor );
+										pixelColor = Color.overlay( pixelColor, blockColor );
 										
-										if( alpha(blockColor) >= shadeOpacityCutoff  ) pixelHeight = absY;
+										if( Color.alpha(blockColor) >= shadeOpacityCutoff  ) pixelHeight = absY;
 									}
 								} else {
-									pixelColor = overlay( pixelColor, air16Color );
+									pixelColor = Color.overlay( pixelColor, air16Color );
 								}
 							}
 
