@@ -56,7 +56,7 @@
 0x0038	Diamond Ore
 0x0039	Block of Diamond
 0x003A	Crafting Table
-0x003B	Wheat Seeds
+0x003B	Wheat
 0x003C	Farmland
 0x003D	Furnace
 0x003E	Burning Furnace
