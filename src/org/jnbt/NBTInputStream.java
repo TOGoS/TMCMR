@@ -1,4 +1,4 @@
-package togos.minecraft.maprend.io;
+package org.jnbt;
 
 /*
  * JNBT License
@@ -41,20 +41,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.jnbt.ByteArrayTag;
-import org.jnbt.ByteTag;
-import org.jnbt.CompoundTag;
-import org.jnbt.DoubleTag;
-import org.jnbt.EndTag;
-import org.jnbt.FloatTag;
-import org.jnbt.IntTag;
-import org.jnbt.ListTag;
-import org.jnbt.LongTag;
-import org.jnbt.NBTConstants;
-import org.jnbt.NBTUtils;
-import org.jnbt.ShortTag;
-import org.jnbt.StringTag;
-import org.jnbt.Tag;
 
 /**
  * <p>This class reads <strong>NBT</strong>, or
@@ -69,7 +55,7 @@ import org.jnbt.Tag;
  * Updated by TOGoS to take a DataInputStream instead of the compressed
  * stream as the constuctor argument.
  */
-public final class BetterNBTInputStream implements Closeable {
+public final class NBTInputStream implements Closeable {
 	
 	/**
 	 * The data input stream.
@@ -82,7 +68,7 @@ public final class BetterNBTInputStream implements Closeable {
 	 * @param is The input stream.
 	 * @throws IOException if an I/O error occurs.
 	 */
-	public BetterNBTInputStream(DataInputStream is) throws IOException {
+	public NBTInputStream(DataInputStream is) throws IOException {
 		this.is = is;
 	}
 	
@@ -159,7 +145,7 @@ public final class BetterNBTInputStream implements Closeable {
 			int childType = is.readByte();
 			length = is.readInt();
 			
-			List tagList = new ArrayList();
+			List<Tag> tagList = new ArrayList<Tag>();
 			for(int i = 0; i < length; i++) {
 				Tag tag = readTagPayload(childType, "", depth + 1);
 				if(tag instanceof EndTag) {
@@ -170,7 +156,7 @@ public final class BetterNBTInputStream implements Closeable {
 			
 			return new ListTag(name, NBTUtils.getTypeClass(childType), tagList);
 		case NBTConstants.TYPE_COMPOUND:
-			Map tagMap = new HashMap();
+			Map<String,Tag> tagMap = new HashMap<String,Tag>();
 			while(true) {
 				Tag tag = readTag(depth + 1);
 				if(tag instanceof EndTag) {
@@ -181,7 +167,7 @@ public final class BetterNBTInputStream implements Closeable {
 			}
 			
 			return new CompoundTag(name, tagMap);
-		case 11: // Int array
+		case NBTConstants.TYPE_INT_ARRAY: // Int array
 			length = is.readInt();
 			byte[] intData = new byte[length*4];
 			is.readFully(intData);

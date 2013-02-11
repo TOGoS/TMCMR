@@ -82,7 +82,7 @@ public class RegionFile
     private RandomAccessFile file;
     private final int offsets[];
     private final int chunkTimestamps[];
-    private ArrayList sectorFree;
+    private ArrayList<Boolean> sectorFree;
     private int sizeDelta;
     private long lastModified = 0;
 
@@ -125,7 +125,7 @@ public class RegionFile
 
             /* set up the available sector map */
             int nSectors = (int) file.length() / SECTOR_BYTES;
-            sectorFree = new ArrayList(nSectors);
+            sectorFree = new ArrayList<Boolean>(nSectors);
 
             for (int i = 0; i < nSectors; ++i) {
                 sectorFree.add(Boolean.TRUE);
@@ -314,9 +314,9 @@ public class RegionFile
                 if (runStart != -1) {
                     for (int i = runStart; i < sectorFree.size(); ++i) {
                         if (runLength != 0) {
-                            if( ((Boolean)sectorFree.get(i)).booleanValue() ) runLength++;
+                            if( sectorFree.get(i) ) runLength++;
                             else runLength = 0;
-                        } else if( ((Boolean)sectorFree.get(i)).booleanValue() ) {
+                        } else if( sectorFree.get(i) ) {
                             runStart = i;
                             runLength = 1;
                         }

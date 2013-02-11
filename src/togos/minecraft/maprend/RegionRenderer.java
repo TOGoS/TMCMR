@@ -7,7 +7,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.Iterator;
 
 import javax.imageio.ImageIO;
 
@@ -15,9 +14,10 @@ import org.jnbt.ByteArrayTag;
 import org.jnbt.ByteTag;
 import org.jnbt.CompoundTag;
 import org.jnbt.ListTag;
+import org.jnbt.NBTInputStream;
+import org.jnbt.Tag;
 
 import togos.minecraft.maprend.RegionMap.Region;
-import togos.minecraft.maprend.io.BetterNBTInputStream;
 import togos.minecraft.maprend.io.ContentStore;
 import togos.minecraft.maprend.io.RegionFile;
 
@@ -50,8 +50,8 @@ public class RegionRenderer
 			sectionsUsed[i] = false;
 		}
 		
-		for( Iterator i = ((ListTag)levelTag.getValue().get("Sections")).getValue().iterator(); i.hasNext(); ) {
-			CompoundTag sectionInfo = (CompoundTag)i.next();
+		for( Tag t : ((ListTag)levelTag.getValue().get("Sections")).getValue() ) {
+			CompoundTag sectionInfo = (CompoundTag)t;
 			int sectionIndex = ((ByteTag)sectionInfo.getValue().get("Y")).getValue().intValue();
 			byte[] blockIdsLow = ((ByteArrayTag)sectionInfo.getValue().get("Blocks")).getValue();
 			short[] destSectionData = sectionData[sectionIndex];
@@ -123,7 +123,7 @@ public class RegionRenderer
 				if( cis == null ) continue;
 				
 				try {
-					BetterNBTInputStream nis = new BetterNBTInputStream(cis);
+					NBTInputStream nis = new NBTInputStream(cis);
 					CompoundTag rootTag = (CompoundTag)nis.readTag();
 					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
 					loadChunkData( levelTag, maxSectionCount, sectionData, usedSections );

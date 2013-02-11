@@ -1,6 +1,5 @@
-package togos.minecraft.maprend.io;
+package org.jnbt;
 
-import org.jnbt.Tag;
 
 public class IntArrayTag extends Tag
 {

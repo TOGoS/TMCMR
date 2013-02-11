@@ -39,7 +39,7 @@ public class TextureScriptInterpreter
 		return Color.color( a/nPix, r/nPix, g/nPix, b/nPix );
 	}
 	
-	public static void subImage( List stack ) {
+	public static void subImage( List<Object> stack ) {
 		int height = getInt(stack.remove(stack.size()-1));
 		int width = getInt(stack.remove(stack.size()-1));
 		int y = getInt(stack.remove(stack.size()-1));
@@ -48,12 +48,12 @@ public class TextureScriptInterpreter
 		stack.add( image.getSubimage(x, y, width, height) );
 	}
 	
-	public static void multiplyColor( List stack ) {
+	public static void multiplyColor( List<Object> stack ) {
 		// Could be extended to support images, too.
 		stack.add(new Integer(Color.multiply( getInt(stack.remove(stack.size()-1)), getInt(stack.remove(stack.size()-1)) )));
 	}
 	
-	public static void averageColor( List stack ) {
+	public static void averageColor( List<Object> stack ) {
 		stack.add(new Integer(averageColor((BufferedImage)stack.remove(stack.size()-1))));
 	}
 	
@@ -95,7 +95,7 @@ public class TextureScriptInterpreter
 		}
 	}
 	
-	public static void printBlockColor( List stack ) {
+	public static void printBlockColor( List<Object> stack ) {
 		Object color   = stack.remove(stack.size()-1);
 		Object blockId = stack.remove(stack.size()-1);
 		if( blockId instanceof Number ) {
@@ -106,7 +106,7 @@ public class TextureScriptInterpreter
 	}
 	
 	public static void interpret( Reader r ) throws IOException {
-		ArrayList stack = new ArrayList();
+		ArrayList<Object> stack = new ArrayList<Object>();
 		
 		String t;
 		Object o;

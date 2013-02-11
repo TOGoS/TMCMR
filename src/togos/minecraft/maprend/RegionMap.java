@@ -3,7 +3,6 @@ package togos.minecraft.maprend;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,7 +15,7 @@ public class RegionMap
 		public File imageFile;
 	}
 	
-	public List regions = new ArrayList();
+	public List<Region> regions = new ArrayList<Region>();
 	public int minX=Integer.MAX_VALUE, minZ=Integer.MAX_VALUE, maxX=Integer.MIN_VALUE, maxZ=Integer.MIN_VALUE;
 	
 	public Region[] xzMap() {
@@ -25,16 +24,14 @@ public class RegionMap
 		int width = maxX-minX+1;
 		int depth = maxZ-minZ+1;
 		Region[] m = new Region[width*depth];
-		for( Iterator i=regions.iterator(); i.hasNext(); ) {
-			Region r = (Region)i.next();
+		for( Region r : regions ) {
 			m[ (r.rx-minX) + (r.rz-minZ)*width ] = r;
 		}
 		return m;
 	}
 	
 	public Region regionAt( int rx, int rz ) {
-		for( Iterator i=regions.iterator(); i.hasNext(); ) {
-			Region r = (Region)i.next();
+		for( Region r : regions ) {
 			if( r.rx == rx && r.rz == rz ) return r;
 		}
 		return null;
