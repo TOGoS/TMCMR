@@ -100,7 +100,7 @@ public class RegionFile
                 lastModified = path.lastModified();
             }
 
-            file = new RandomAccessFile(path, "rw");
+            file = new RandomAccessFile(path, "w");
 
             if (file.length() < SECTOR_BYTES) {
                 /* we need to write the chunk offset table */
