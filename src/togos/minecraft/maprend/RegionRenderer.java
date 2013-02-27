@@ -399,9 +399,9 @@ public class RegionRenderer
 			ColorMap.loadDefault() :
 			ColorMap.load( new File(colorMapFile) );
 		
-		if( createTileHtml == null && singleDirectoryGiven(regionFiles) ) createTileHtml = Boolean.FALSE;
+		if( createTileHtml == null && singleDirectoryGiven(regionFiles) ) createTileHtml = Boolean.TRUE;
 		
-		if( createTileHtml == null ) createTileHtml = Boolean.TRUE;
+		if( createTileHtml == null  ) createTileHtml = Boolean.FALSE;
 		if( createImageTree == null ) createImageTree = Boolean.FALSE;
 		
 		RegionMap rm = RegionMap.load( regionFiles );
