@@ -47,32 +47,36 @@ public class RegionMap
 		
 	static final Pattern rfpat = Pattern.compile("^r\\.(-?\\d+)\\.(-?\\d+)\\.mca$");
 	
-	public static RegionMap load( File dir ) {
-		RegionMap rm = new RegionMap();
-		
+	protected void add( File dir ) {
 		Matcher m;
 		if( dir.isDirectory() ) { 
 			File[] files = dir.listFiles();
 			for( int i=0; i<files.length; ++i ) {
 				m = rfpat.matcher(files[i].getName());
-				if( m.matches() ) {
-					Region r = new Region();
-					r.rx = Integer.parseInt(m.group(1));
-					r.rz = Integer.parseInt(m.group(2));
-					r.regionFile = files[i];
-					rm.addRegion( r );
-				}
+				if( m.matches() ) add( files[i] );
 			}
 		} else if( (m = rfpat.matcher(dir.getName())).matches() ) {
 			Region r = new Region();
 			r.rx = Integer.parseInt(m.group(1));
 			r.rz = Integer.parseInt(m.group(2));
 			r.regionFile = dir;
-			rm.addRegion( r );
+			addRegion( r );
 		} else {
 			throw new RuntimeException(dir+" does not seem to be a directory or a region file");
 		}
-		
+	}
+	
+	//// Le statique ////
+	
+	public static RegionMap load( File file ) {
+		RegionMap rm = new RegionMap();
+		rm.add(file);
+		return rm;
+	}
+	
+	public static RegionMap load( List<File> files ) {
+		RegionMap rm = new RegionMap();
+		for( File f : files ) rm.add(f);
 		return rm;
 	}
 	

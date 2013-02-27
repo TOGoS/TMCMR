@@ -7,6 +7,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 
@@ -23,6 +25,21 @@ import togos.minecraft.maprend.io.RegionFile;
 
 public class RegionRenderer
 {
+	static class Timer {
+		public long regionLoading;
+		public long preRendering;
+		public long postProcessing;
+		public long imageSaving;
+		public long total;
+		
+		public int regionCount;
+		public int sectionCount;
+		
+		protected String formatTime( String name, long millis ) {
+			return String.format("%20s: % 8d   % 8.2f   % 8.4f", name, millis, millis/(double)regionCount, millis/(double)sectionCount);
+		}
+	}
+	
 	public static final short BASE_HEIGHT = 64;
 	
 	public final boolean debug;
@@ -126,6 +143,11 @@ public class RegionRenderer
 	
 	//// Rendering ////
 	
+	Timer timer = new Timer();
+	protected long startTime;
+	protected void resetInterval() { startTime = System.currentTimeMillis(); }
+	protected long getInterval() { return System.currentTimeMillis() - startTime; }
+	
 	/**
 	 * Load color and height data from a region.
 	 * @param rf
@@ -140,6 +162,7 @@ public class RegionRenderer
 		
 		for( int cz=0; cz<32; ++cz ) {
 			for( int cx=0; cx<32; ++cx ) {				
+				resetInterval();
 				DataInputStream cis = rf.getChunkDataInputStream(cx,cz);
 				if( cis == null ) continue;
 				NBTInputStream nis = null;
@@ -148,7 +171,15 @@ public class RegionRenderer
 					CompoundTag rootTag = (CompoundTag)nis.readTag();
 					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
 					loadChunkData( levelTag, maxSectionCount, sectionBlockIds, sectionBlockData, usedSections );
+					timer.regionLoading += getInterval();
 					
+					for( int s=0; s<maxSectionCount; ++s ) {
+						if( usedSections[s] ) {
+							++timer.sectionCount;
+						}
+					}
+					
+					resetInterval();
 					for( int z=0; z<16; ++z ) {
 						for( int x=0; x<16; ++x ) {
 							int pixelColor = 0;
@@ -178,6 +209,7 @@ public class RegionRenderer
 							heights[dIdx] = pixelHeight;
 						}
 					}
+					timer.preRendering += getInterval();
 				} catch( IOException e ) {
 					System.err.println("Error reading chunk from "+rf.getFile()+" at "+cx+","+cz);
 					e.printStackTrace(System.err);
@@ -196,6 +228,7 @@ public class RegionRenderer
 	}
 	
 	public BufferedImage render( RegionFile rf ) {
+		resetInterval();
 		int width=512, depth=512;
 		
 		int[] surfaceColor  = new int[width*depth];
@@ -210,7 +243,8 @@ public class RegionRenderer
 		for( int z=0; z<depth; ++z ) {
 			bi.setRGB( 0, z, width, 1, surfaceColor, width*z, width );
 		}
-
+		timer.postProcessing += getInterval();
+		
 		return bi;
 	}
 	
@@ -224,6 +258,7 @@ public class RegionRenderer
 	}
 		
 	public void renderAll( RegionMap rm, String outputDirname, boolean force ) {
+		long startTime = System.currentTimeMillis();
 		Region[] regions = rm.xzMap();
 		
 		File outputDir = new File(outputDirname);
@@ -254,12 +289,16 @@ public class RegionRenderer
 			BufferedImage bi = render( new RegionFile( r.regionFile ) );
 			
 			try {
+				resetInterval();
 				ImageIO.write(bi, "png", imageFile);
+				timer.imageSaving += getInterval();
 			} catch( IOException e ) {
 				System.err.println("Error writing PNG to "+imageFile);
 				e.printStackTrace();
 			}
+			++timer.regionCount;
 		}
+		timer.total += System.currentTimeMillis() - startTime;
 	}
 	
 	public void createTileHtml( RegionMap rm, String outputDirname ) {
@@ -309,8 +348,11 @@ public class RegionRenderer
 		return b == null ? defalt : b.booleanValue();
 	}
 	
+	protected static boolean singleDirectoryGiven( List<File> files ) {
+		return files.size() == 1 && files.get(0).isDirectory();
+	}
+	
 	public static void main( String[] args ) throws Exception {
-		String regionDirname = null;
 		String outputDirname = null;
 		boolean force = false;
 		boolean debug = false;
@@ -318,13 +360,11 @@ public class RegionRenderer
 		Boolean createImageTree = null;
 		String colorMapFile = null;
 		
+		ArrayList<File> regionFiles = new ArrayList<File>(); 
+		
 		for( int i=0; i<args.length; ++i ) {
 			if( args[i].charAt(0) != '-' ) {
-				if( regionDirname == null ) regionDirname = args[i];
-				else if( outputDirname == null ) outputDirname = args[i];
-				else {
-					System.err.println("Unrecognised argument: "+args[i]);
-				}
+				regionFiles.add(new File(args[i]));
 			} else if( "-o".equals(args[i]) ) {
 				outputDirname = args[++i];
 			} else if( "-f".equals(args[i]) ) {
@@ -344,8 +384,8 @@ public class RegionRenderer
 			}
 		}
 		
-		if( regionDirname == null ) {
-			System.err.println("Region directory unspecified.");
+		if( regionFiles.size() == 0 ) {
+			System.err.println("No regions or directories specified.");
 			System.err.println(USAGE);
 			System.exit(1);
 		}
@@ -359,15 +399,26 @@ public class RegionRenderer
 			ColorMap.loadDefault() :
 			ColorMap.load( new File(colorMapFile) );
 		
-		final File regionDir = new File(regionDirname);
-		if( createTileHtml == null && !regionDir.isDirectory() ) createTileHtml = Boolean.FALSE;
+		if( createTileHtml == null && singleDirectoryGiven(regionFiles) ) createTileHtml = Boolean.FALSE;
 		
 		if( createTileHtml == null ) createTileHtml = Boolean.TRUE;
 		if( createImageTree == null ) createImageTree = Boolean.FALSE;
 		
-		RegionMap rm = RegionMap.load( regionDir );
+		RegionMap rm = RegionMap.load( regionFiles );
 		RegionRenderer rr = new RegionRenderer( colorMap, debug );
+		
 		rr.renderAll( rm, outputDirname, force );
+		if( debug ) {
+			final Timer tim = rr.timer;
+			System.err.println("Rendered "+tim.regionCount+" regions, "+tim.sectionCount+" sections in "+(tim.total)+"ms");
+			System.err.println("The following times lines indicate milliseconds total, per region, and per section");
+			System.err.println(tim.formatTime("Loading",        tim.regionLoading ));
+			System.err.println(tim.formatTime("Pre-rendering",  tim.preRendering  ));
+			System.err.println(tim.formatTime("Post-processing",tim.postProcessing));
+			System.err.println(tim.formatTime("Image saving",   tim.imageSaving   ));
+			System.err.println(tim.formatTime("Total",          tim.total         ));
+		}
+		
 		if( createTileHtml.booleanValue() ) rr.createTileHtml( rm, outputDirname );
 		if( createImageTree.booleanValue() ) rr.createImageTree( rm );
 	}
