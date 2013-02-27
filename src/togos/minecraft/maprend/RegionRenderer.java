@@ -37,26 +37,31 @@ public class RegionRenderer
 	public RegionRenderer( ColorMap colorMap, boolean debug ) {
 		if( colorMap == null ) throw new RuntimeException("colorMap cannot be null");
 		this.colorMap = colorMap;
-		this.air16Color = Color.overlay( 0, colorMap.getColor( 0 ), 16 );
+		this.air16Color = Color.overlay( 0, colorMap.getColor(0), 16 );
 		this.debug = debug;
 	}
 	
 	/**
+	 * Extract a 4-bit integer from a byte in an array, where the first nybble
+	 * in each byte (even nybble indexes) occupies the lower 4 bits and the second
+	 * (odd nybble indexes) occupies the high bits.
+	 * 
 	 * @param arr the source array
-	 * @param index the index of the desired 4 bits
+	 * @param index the index (in nybbles) of the desired 4 bits
 	 * @return the desired 4 bits as the lower bits of a byte
 	 */
-	protected static byte nibble4( byte[] arr, int index ) {
-		return (byte) (index%2==0 ? arr[index/2]&0x0F : (arr[index/2]>>4)&0x0F);
+	protected static final byte nybble( byte[] arr, int index ) {
+		return (byte)((index % 2 == 0 ? arr[index/2] : (arr[index/2]>>4))&0x0F);
 	}
 	
 	/**
 	 * @param levelTag
 	 * @param maxSectionCount
-	 * @param sectionBlocks block ids for non-empty sections will be written to sectionBlocks[sectionIndex][blockIndex]
+	 * @param sectionBlockIds block IDs for non-empty sections will be written to sectionBlockIds[sectionIndex][blockIndex]
+	 * @param sectionBlockData block data for non-empty sections will be written to sectionBlockData[sectionIndex][blockIndex]
 	 * @param sectionsUsed sectionsUsed[sectionIndex] will be set to true for non-empty sections
 	 */
-	protected static void loadChunkData( CompoundTag levelTag, int maxSectionCount, short[][] sectionBlocks, byte[][] sectionData, boolean[] sectionsUsed ) {
+	protected static void loadChunkData( CompoundTag levelTag, int maxSectionCount, short[][] sectionBlockIds, byte[][] sectionBlockData, boolean[] sectionsUsed ) {
 		for( int i=0; i<maxSectionCount; ++i ) {
 			sectionsUsed[i] = false;
 		}
@@ -64,10 +69,10 @@ public class RegionRenderer
 		for( Tag t : ((ListTag)levelTag.getValue().get("Sections")).getValue() ) {
 			CompoundTag sectionInfo = (CompoundTag)t;
 			int sectionIndex = ((ByteTag)sectionInfo.getValue().get("Y")).getValue().intValue();
-			byte[] blockIdsLow = ((ByteArrayTag)sectionInfo.getValue().get("Blocks")).getValue();
-			short[] destSectionBlocks = sectionBlocks[sectionIndex];
-			byte[] blockData = ((ByteArrayTag) sectionInfo.getValue().get("Data")).getValue();
-			byte[] destSectionData = sectionData[sectionIndex];
+			byte[]  blockIdsLow = ((ByteArrayTag)sectionInfo.getValue().get("Blocks")).getValue();
+			byte[]  blockData   = ((ByteArrayTag)sectionInfo.getValue().get("Data")).getValue();
+			short[] destSectionBlockIds = sectionBlockIds[sectionIndex];
+			byte[]  destSectionData = sectionBlockData[sectionIndex];
 			sectionsUsed[sectionIndex] = true;
 			for( int y=0; y<16; ++y ) {
 				for( int z=0; z<16; ++z ) {
@@ -75,18 +80,17 @@ public class RegionRenderer
 						int index = y*256+z*16+x;
 						short blockType = (short) (blockIdsLow[index]&0xFF);
 						// TODO: Add in value from 'Add' << 8
-
-						destSectionBlocks[index] = blockType;
-						destSectionData[index] = nibble4( blockData, index );
+						
+						destSectionBlockIds[index] = blockType;
+						destSectionData[index] = nybble( blockData, index );
 					}
 				}
 			}
 		}
 	}
-		
+	
 	//// Handy color-manipulation functions ////
 	
-
 	protected static void demultiplyAlpha( int[] color ) {
 		for( int i=color.length-1; i>=0; --i ) color[i] = Color.demultiplyAlpha(color[i]);
 	}
@@ -123,14 +127,15 @@ public class RegionRenderer
 	//// Rendering ////
 	
 	/**
+	 * Load color and height data from a region.
 	 * @param rf
 	 * @param colors color data will be written here
 	 * @param heights height data (height of top of topmost non-transparent block) will be written here
 	 */
 	protected void preRender( RegionFile rf, int[] colors, short[] heights ) {
 		int maxSectionCount = 16;
-		short[][] sectionBlocks = new short[maxSectionCount][16*16*16];
-		byte[][] sectionData = new byte[maxSectionCount][16*16*16];
+		short[][] sectionBlockIds = new short[maxSectionCount][16*16*16];
+		byte[][] sectionBlockData = new byte[maxSectionCount][16*16*16];
 		boolean[] usedSections = new boolean[maxSectionCount]; 
 		
 		for( int cz=0; cz<32; ++cz ) {
@@ -142,7 +147,7 @@ public class RegionRenderer
 					nis = new NBTInputStream(cis);
 					CompoundTag rootTag = (CompoundTag)nis.readTag();
 					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
-					loadChunkData( levelTag, maxSectionCount, sectionBlocks, sectionData, usedSections );
+					loadChunkData( levelTag, maxSectionCount, sectionBlockIds, sectionBlockData, usedSections );
 					
 					for( int z=0; z<16; ++z ) {
 						for( int x=0; x<16; ++x ) {
@@ -151,39 +156,38 @@ public class RegionRenderer
 							
 							for( int s=0; s<maxSectionCount; ++s ) {
 								if( usedSections[s] ) {
-									short[] blocks = sectionBlocks[s];
-									byte[] data = sectionData[s];
+									short[] blockIds  = sectionBlockIds[s];
+									byte[]  blockData = sectionBlockData[s];
 									
-									for( int y=0; y<16; ++y ) {
-										final short absY = (short)(s*16+y+1);
-										// TODO: height-based shading?
-										
-										final short blockId = blocks[y*256+z*16+x];
-										final int blockColor = colorMap.getColor( blockId&0xFFFF, data[y*256+z*16+x] );
+									for( int idx=z*16+x, y=0, absY=s*16; y<16; ++y, idx+=256, ++absY ) {
+										final short blockId    =  blockIds[idx];
+										final byte  blockDatum = blockData[idx];
+										final int blockColor = colorMap.getColor( blockId&0xFFFF, blockDatum );
 										pixelColor = Color.overlay( pixelColor, blockColor );
-										
-										if( Color.alpha(blockColor) >= shadeOpacityCutoff  ) pixelHeight = absY;
+										if( Color.alpha(blockColor) >= shadeOpacityCutoff  ) {
+											pixelHeight = (short)absY;
+										}
 									}
 								} else {
 									pixelColor = Color.overlay( pixelColor, air16Color );
 								}
 							}
-
+							
 							final int dIdx = 512*(cz*16+z)+16*cx+x; 
 							colors[dIdx] = pixelColor;
 							heights[dIdx] = pixelHeight;
 						}
 					}
-					
 				} catch( IOException e ) {
 					System.err.println("Error reading chunk from "+rf.getFile()+" at "+cx+","+cz);
-					e.printStackTrace();
+					e.printStackTrace(System.err);
 				} finally {
-					if( nis!=null ) {
+					if( nis != null ) {
 						try {
 							nis.close();
-						} catch ( IOException e ) {
-							e.printStackTrace();
+						} catch( IOException e ) {
+							System.err.println("Failed to close NBTInputStream!");
+							e.printStackTrace(System.err);
 						}
 					}
 				}
@@ -250,11 +254,11 @@ public class RegionRenderer
 			BufferedImage bi = render( new RegionFile( r.regionFile ) );
 			
 			try {
-		        ImageIO.write(bi, "png", imageFile);
-	        } catch( IOException e ) {
-	        	System.err.println("Error writing PNG to "+imageFile);
-		        e.printStackTrace();
-	        }
+				ImageIO.write(bi, "png", imageFile);
+			} catch( IOException e ) {
+				System.err.println("Error writing PNG to "+imageFile);
+				e.printStackTrace();
+			}
 		}
 	}
 	
@@ -351,14 +355,11 @@ public class RegionRenderer
 			System.exit(1);
 		}
 		
-		ColorMap colorMap = new ColorMap();
-		if( colorMapFile==null ) {
-			colorMap.loadDefault();
-		} else {
-			colorMap.load( new File( colorMapFile ) );
-		}
-
-		File regionDir = new File(regionDirname);
+		final ColorMap colorMap = colorMapFile == null ?
+			ColorMap.loadDefault() :
+			ColorMap.load( new File(colorMapFile) );
+		
+		final File regionDir = new File(regionDirname);
 		if( createTileHtml == null && !regionDir.isDirectory() ) createTileHtml = Boolean.FALSE;
 		
 		if( createTileHtml == null ) createTileHtml = Boolean.TRUE;
