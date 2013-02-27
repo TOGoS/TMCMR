@@ -23,8 +23,10 @@ import togos.minecraft.maprend.io.RegionFile;
 
 public class RegionRenderer
 {
+	public static final short BASE_HEIGHT = 64;
+	
 	public final boolean debug;
-	public final int[] colorMap;
+	public final ColorMap colorMap;
 	public final int air16Color; // Color of 16 air blocks stacked
 	/**
 	 * Alpha below which blocks are considered transparent for purposes of shading
@@ -32,20 +34,29 @@ public class RegionRenderer
 	 */
 	private int shadeOpacityCutoff = 0x20; 
 	
-	public RegionRenderer( int[] colorMap, boolean debug ) {
+	public RegionRenderer( ColorMap colorMap, boolean debug ) {
 		if( colorMap == null ) throw new RuntimeException("colorMap cannot be null");
 		this.colorMap = colorMap;
-		this.air16Color = Color.overlay( 0, colorMap[0], 16 );
+		this.air16Color = Color.overlay( 0, colorMap.getColor( 0 ), 16 );
 		this.debug = debug;
+	}
+	
+	/**
+	 * @param arr the source array
+	 * @param index the index of the desired 4 bits
+	 * @return the desired 4 bits as the lower bits of a byte
+	 */
+	protected static byte nibble4( byte[] arr, int index ) {
+		return (byte) (index%2==0 ? arr[index/2]&0x0F : (arr[index/2]>>4)&0x0F);
 	}
 	
 	/**
 	 * @param levelTag
 	 * @param maxSectionCount
-	 * @param sectionData block ids for non-empty sections will be written to sectionData[sectionIndex][blockIndex]
+	 * @param sectionBlocks block ids for non-empty sections will be written to sectionBlocks[sectionIndex][blockIndex]
 	 * @param sectionsUsed sectionsUsed[sectionIndex] will be set to true for non-empty sections
 	 */
-	protected static void loadChunkData( CompoundTag levelTag, int maxSectionCount, short[][] sectionData, boolean[] sectionsUsed ) {
+	protected static void loadChunkData( CompoundTag levelTag, int maxSectionCount, short[][] sectionBlocks, byte[][] sectionData, boolean[] sectionsUsed ) {
 		for( int i=0; i<maxSectionCount; ++i ) {
 			sectionsUsed[i] = false;
 		}
@@ -54,15 +65,19 @@ public class RegionRenderer
 			CompoundTag sectionInfo = (CompoundTag)t;
 			int sectionIndex = ((ByteTag)sectionInfo.getValue().get("Y")).getValue().intValue();
 			byte[] blockIdsLow = ((ByteArrayTag)sectionInfo.getValue().get("Blocks")).getValue();
-			short[] destSectionData = sectionData[sectionIndex];
+			short[] destSectionBlocks = sectionBlocks[sectionIndex];
+			byte[] blockData = ((ByteArrayTag) sectionInfo.getValue().get("Data")).getValue();
+			byte[] destSectionData = sectionData[sectionIndex];
 			sectionsUsed[sectionIndex] = true;
 			for( int y=0; y<16; ++y ) {
 				for( int z=0; z<16; ++z ) {
 					for( int x=0; x<16; ++x ) {
-						short blockType = (short)(blockIdsLow[y*256+z*16+x]&0xFF);
+						int index = y*256+z*16+x;
+						short blockType = (short) (blockIdsLow[index]&0xFF);
 						// TODO: Add in value from 'Add' << 8
-						
-						destSectionData[y*256+z*16+x] = blockType;
+
+						destSectionBlocks[index] = blockType;
+						destSectionData[index] = nibble4( blockData, index );
 					}
 				}
 			}
@@ -98,7 +113,7 @@ public class RegionRenderer
 				if( shade >  10 ) shade =  10;
 				if( shade < -10 ) shade = -10;
 				
-				shade += (height[idx] - 64) / 7.0;
+				shade += (height[idx] - BASE_HEIGHT) / 7.0;
 				
 				color[idx] = Color.shade( color[idx], (int)(shade*8) );
 			}
@@ -114,19 +129,20 @@ public class RegionRenderer
 	 */
 	protected void preRender( RegionFile rf, int[] colors, short[] heights ) {
 		int maxSectionCount = 16;
-		short[][] sectionData = new short[maxSectionCount][16*16*16];
+		short[][] sectionBlocks = new short[maxSectionCount][16*16*16];
+		byte[][] sectionData = new byte[maxSectionCount][16*16*16];
 		boolean[] usedSections = new boolean[maxSectionCount]; 
 		
 		for( int cz=0; cz<32; ++cz ) {
 			for( int cx=0; cx<32; ++cx ) {				
 				DataInputStream cis = rf.getChunkDataInputStream(cx,cz);
 				if( cis == null ) continue;
-				
+				NBTInputStream nis = null;
 				try {
-					NBTInputStream nis = new NBTInputStream(cis);
+					nis = new NBTInputStream(cis);
 					CompoundTag rootTag = (CompoundTag)nis.readTag();
 					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
-					loadChunkData( levelTag, maxSectionCount, sectionData, usedSections );
+					loadChunkData( levelTag, maxSectionCount, sectionBlocks, sectionData, usedSections );
 					
 					for( int z=0; z<16; ++z ) {
 						for( int x=0; x<16; ++x ) {
@@ -135,13 +151,15 @@ public class RegionRenderer
 							
 							for( int s=0; s<maxSectionCount; ++s ) {
 								if( usedSections[s] ) {
-									short[] blocks = sectionData[s];
+									short[] blocks = sectionBlocks[s];
+									byte[] data = sectionData[s];
+									
 									for( int y=0; y<16; ++y ) {
 										final short absY = (short)(s*16+y+1);
 										// TODO: height-based shading?
 										
 										final short blockId = blocks[y*256+z*16+x];
-										final int blockColor = colorMap[blockId&0xFFFF];
+										final int blockColor = colorMap.getColor( blockId&0xFFFF, data[y*256+z*16+x] );
 										pixelColor = Color.overlay( pixelColor, blockColor );
 										
 										if( Color.alpha(blockColor) >= shadeOpacityCutoff  ) pixelHeight = absY;
@@ -160,6 +178,14 @@ public class RegionRenderer
 				} catch( IOException e ) {
 					System.err.println("Error reading chunk from "+rf.getFile()+" at "+cx+","+cz);
 					e.printStackTrace();
+				} finally {
+					if( nis!=null ) {
+						try {
+							nis.close();
+						} catch ( IOException e ) {
+							e.printStackTrace();
+						}
+					}
 				}
 			}
 		}
@@ -325,9 +351,13 @@ public class RegionRenderer
 			System.exit(1);
 		}
 		
-		int[] colorMap = colorMapFile == null ? ColorMap.getDefaultColorMap() : ColorMap.load(new File(colorMapFile));
-		if( colorMap == null ) colorMap = ColorMap.getDefaultColorMap();
-		
+		ColorMap colorMap = new ColorMap();
+		if( colorMapFile==null ) {
+			colorMap.loadDefault();
+		} else {
+			colorMap.load( new File( colorMapFile ) );
+		}
+
 		File regionDir = new File(regionDirname);
 		if( createTileHtml == null && !regionDir.isDirectory() ) createTileHtml = Boolean.FALSE;
 		
