@@ -23,17 +23,23 @@ public final class ColorMap
 		return (int)Long.parseLong(s);
 	}
 	
-	public static ColorMap load( BufferedReader s ) throws IOException {
+	public static ColorMap load( BufferedReader s, String filename ) throws IOException {
 		BlockColors[] colors = new BlockColors[SIZE];
 		for( int i=0; i<SIZE; ++i ) {
 			colors[i] = new BlockColors(0);
 		}
+		int lineNum = 0;
 		String line;
 		while( (line = s.readLine()) != null ) {
+			++lineNum;
 			if( line.trim().isEmpty() ) continue;
 			if( line.trim().startsWith("#") ) continue;
 			
 			String[] v = line.split("\t", 3);
+			if( v.length < 2 ) {
+				System.err.println("Invalid color map line at "+filename+":"+lineNum+": "+line);
+				continue;
+			}
 			int color = parseInt(v[1]);
 			if( "default".equals(v[0]) ) {
 				for( int i=0; i<colors.length; ++i ) colors[i] = new BlockColors( color );
@@ -54,7 +60,7 @@ public final class ColorMap
 	public static ColorMap load( File f ) throws IOException {
 		BufferedReader br = new BufferedReader(new FileReader(f));
 		try {
-			return load(br);
+			return load(br, f.getPath());
 		} finally {
 			br.close();
 		}
@@ -64,7 +70,7 @@ public final class ColorMap
 		try {
 			BufferedReader br = new BufferedReader(new InputStreamReader(ColorMap.class.getResourceAsStream("block-colors.txt")));
 			try {
-				return load(br);
+				return load(br, "(default block colors)");
 			} finally {
 				br.close();
 			}
