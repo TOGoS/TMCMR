@@ -1,16 +1,13 @@
 package togos.minecraft.maprend;
 
 import java.awt.image.BufferedImage;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.imageio.ImageIO;
+import javax.imageio.stream.FileImageOutputStream;
+import javax.imageio.stream.ImageOutputStream;
 
 import org.jnbt.ByteArrayTag;
 import org.jnbt.ByteTag;
@@ -285,17 +282,24 @@ public class RegionRenderer
 				imageFile.delete();
 			}
 			if( debug ) System.err.println("generating "+imageFilename+"...");
-			
-			BufferedImage bi = render( new RegionFile( r.regionFile ) );
-			
+
+            RegionFile rf = new RegionFile( r.regionFile );
+			BufferedImage bi = render( rf );
+
+            ImageOutputStream os = null;
 			try {
+                os = new FileImageOutputStream(imageFile);
 				resetInterval();
-				ImageIO.write(bi, "png", imageFile);
+				ImageIO.write(bi, "png", os);
 				timer.imageSaving += getInterval();
-			} catch( IOException e ) {
+                // close so we don't run out of handles
+                rf.close();
+			} catch( Exception e ) {
 				System.err.println("Error writing PNG to "+imageFile);
 				e.printStackTrace();
-			}
+			} finally {
+                try { if(os!=null) os.close(); } catch(Exception q) {}
+            }
 			++timer.regionCount;
 		}
 		timer.total += System.currentTimeMillis() - startTime;
