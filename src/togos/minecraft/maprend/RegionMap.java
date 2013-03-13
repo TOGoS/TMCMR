@@ -1,7 +1,6 @@
 package togos.minecraft.maprend;
 
 import java.io.File;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -15,20 +14,8 @@ public class RegionMap
 		public File imageFile;
 	}
 	
-	public List<Region> regions = new ArrayList<Region>();
+	public ArrayList<Region> regions = new ArrayList<Region>();
 	public int minX=Integer.MAX_VALUE, minZ=Integer.MAX_VALUE, maxX=Integer.MIN_VALUE, maxZ=Integer.MIN_VALUE;
-	
-	public Region[] xzMap() {
-		if( minX == Integer.MAX_VALUE ) return new Region[0];
-		
-		int width = maxX-minX+1;
-		int depth = maxZ-minZ+1;
-		Region[] m = new Region[width*depth];
-		for( Region r : regions ) {
-			m[ (r.rx-minX) + (r.rz-minZ)*width ] = r;
-		}
-		return m;
-	}
 	
 	public Region regionAt( int rx, int rz ) {
 		for( Region r : regions ) {
@@ -56,6 +43,10 @@ public class RegionMap
 				if( m.matches() ) add( files[i] );
 			}
 		} else if( (m = rfpat.matcher(dir.getName())).matches() ) {
+			if( !dir.exists() ) {
+				System.err.println("Warning: region file '"+dir+"' doesn't exist!");
+				return;
+			}
 			Region r = new Region();
 			r.rx = Integer.parseInt(m.group(1));
 			r.rz = Integer.parseInt(m.group(2));
@@ -78,54 +69,5 @@ public class RegionMap
 		RegionMap rm = new RegionMap();
 		for( File f : files ) rm.add(f);
 		return rm;
-	}
-	
-	protected static String pad( String x, int width ) {
-		if( x.length() > width ) return x.substring( x.length()-width );
-		while( x.length() < width ) x = " "+x;
-		return x;
-	}
-	
-	protected static String fmt( int i ) {
-		return pad( String.valueOf(i), 4 );
-	}
-	
-	public static void dump( RegionMap rm, PrintStream ps ) {
-		Region[] xzMap = rm.xzMap();
-		int width = rm.maxX-rm.minX+1;
-		
-		ps.println("Region");
-		if( rm.minX == Integer.MAX_VALUE ) {
-			ps.println("No files found!");
-			return;
-		}
-		ps.println("X: "+rm.minX+" to "+rm.maxX+", Z: "+rm.minZ+" to "+rm.maxZ);
-		
-		ps.print("      ");
-		for( int x=rm.minX; x<=rm.maxX; ++x ) {
-			ps.print( fmt(x) );
-		}
-		ps.println();
-		ps.println();
-		for( int z=rm.minZ; z<=rm.maxZ; ++z ) {
-			ps.print( fmt(z) );
-			ps.print( "  " );
-			for( int i=0; i<1; ++i ) {
-				if( i > 0 ) ps.print("      ");
-				for( int x=rm.minX; x<=rm.maxX; ++x ) {
-					if( xzMap[(x-rm.minX)+(z-rm.minZ)*width] != null ) {
-						ps.print("[RG]");
-					} else {
-						ps.print("    ");
-					}
-				}
-				ps.println();
-			}
-		}
-	}
-	
-	public static void main( String[] args ) {
-		String regionDir = args[0];
-		dump( load(new File(regionDir)), System.out );
 	}
 }

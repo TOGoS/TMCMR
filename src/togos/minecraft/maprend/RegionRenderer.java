@@ -257,25 +257,22 @@ public class RegionRenderer
 		return pad( ""+v, targetLength );
 	}
 		
-	public void renderAll( RegionMap rm, String outputDirname, boolean force ) throws IOException {
+	public void renderAll( RegionMap rm, File outputDir, boolean force ) throws IOException {
 		long startTime = System.currentTimeMillis();
-		Region[] regions = rm.xzMap();
 		
-		File outputDir = new File(outputDirname);
 		if( !outputDir.exists() ) outputDir.mkdirs();
 		
-		if( regions.length == 0 ) {
+		if( rm.regions.size() == 0 ) {
 			System.err.println("Warning: no regions found!");
 		}
 		
-		for( int i=0; i<regions.length; ++i ) {
-			Region r = regions[i];
+		for( Region r : rm.regions ) {
 			if( r == null ) continue;
 			
 			if( debug ) System.err.print("Region "+pad(r.rx, 4)+", "+pad(r.rz, 4)+"...");
 			
 			String imageFilename = "tile."+r.rx+"."+r.rz+".png";
-			File imageFile = r.imageFile = new File( outputDirname+"/"+imageFilename );
+			File imageFile = r.imageFile = new File( outputDir+"/"+imageFilename );
 			
 			if( imageFile.exists() ) {
 				if( !force && imageFile.lastModified() > r.regionFile.lastModified() ) {
@@ -307,18 +304,23 @@ public class RegionRenderer
 		timer.total += System.currentTimeMillis() - startTime;
 	}
 	
-	public void createTileHtml( RegionMap rm, String outputDirname ) {
+	/**
+	 * Create a "tiles.html" file containing a table with
+	 * all region images (tile.<x>.<z>.png) that exist in outDir
+	 * within the given bounds (inclusive)
+	 */
+	public void createTileHtml( int minX, int minZ, int maxX, int maxZ, File outputDir ) {
 		if( debug ) System.err.println("Writing HTML tiles...");
 		try {
-			Writer w = new OutputStreamWriter(new FileOutputStream(new File(outputDirname+"/tiles.html")));
+			Writer w = new OutputStreamWriter(new FileOutputStream(new File(outputDir+"/tiles.html")));
 			w.write("<html><body style=\"background:black\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n");
 			
-			for( int z=rm.minZ; z<=rm.maxZ; ++z ) {
+			for( int z=minZ; z<=maxZ; ++z ) {
 				w.write("<tr>");
-				for( int x=rm.minX; x<=rm.maxX; ++x ) {
+				for( int x=minX; x<=maxX; ++x ) {
 					w.write("<td>");
 					String imageFilename = "tile."+x+"."+z+".png";
-					File imageFile = new File( outputDirname+"/"+imageFilename );
+					File imageFile = new File( outputDir+"/"+imageFilename );
 					if( imageFile.exists() ) {
 						w.write("<img src=\""+imageFilename+"\"/>");
 					}
@@ -341,11 +343,16 @@ public class RegionRenderer
 	}
 	
 	public static final String USAGE =
-		"Usage: TMCMR <region-dir> -o <output-dir> [-f]\n" +
+		"Usage: TMCMR [options] -o <output-dir> <input-files>\n" +
 		"  -f     ; force re-render even when images are newer than regions\n" +
 		"  -debug ; be chatty\n" +
 		"  -color-map <file>  ; load a custom color map from the specified file\n" +
+		"  -create-tile-html  ; generate tiles.html in the output directory\n" +
 		"  -create-image-tree ; generate a PicGrid-compatible image tree\n" +
+		"\n" +
+		"Input files may be 'region/' directories or individual '.mca' files.\n" +
+		"\n" +
+		"tiles.html will always be generated if a single directory is given as input.\n" +
 		"\n" +
 		"Compound image tree blobs will be written to ~/.ccouch/data/tmcmr/\n" +
 		"Compound images can then be rendered with PicGrid.";
@@ -359,12 +366,12 @@ public class RegionRenderer
 	}
 	
 	public static void main( String[] args ) throws Exception {
-		String outputDirname = null;
+		File outputDir = null;
 		boolean force = false;
 		boolean debug = false;
 		Boolean createTileHtml = null;
 		Boolean createImageTree = null;
-		String colorMapFile = null;
+		File colorMapFile = null;
 		
 		ArrayList<File> regionFiles = new ArrayList<File>(); 
 		
@@ -372,7 +379,7 @@ public class RegionRenderer
 			if( args[i].charAt(0) != '-' ) {
 				regionFiles.add(new File(args[i]));
 			} else if( "-o".equals(args[i]) ) {
-				outputDirname = args[++i];
+				outputDir = new File(args[++i]);
 			} else if( "-f".equals(args[i]) ) {
 				force = true;
 			} else if( "-debug".equals(args[i]) ) {
@@ -382,7 +389,7 @@ public class RegionRenderer
 			} else if( "-create-image-tree".equals(args[i]) ) {
 				createImageTree = Boolean.TRUE;
 			} else if( "-color-map".equals(args[i]) ) {
-				colorMapFile = args[++i];
+				colorMapFile = new File(args[++i]);
 			} else {
 				System.err.println("Unrecognised argument: "+args[i]);
 				System.err.println(USAGE);
@@ -395,7 +402,7 @@ public class RegionRenderer
 			System.err.println(USAGE);
 			System.exit(1);
 		}
-		if( outputDirname == null ) {
+		if( outputDir == null ) {
 			System.err.println("Output directory unspecified.");
 			System.err.println(USAGE);
 			System.exit(1);
@@ -403,7 +410,7 @@ public class RegionRenderer
 		
 		final ColorMap colorMap = colorMapFile == null ?
 			ColorMap.loadDefault() :
-			ColorMap.load( new File(colorMapFile) );
+			ColorMap.load( colorMapFile );
 		
 		if( createTileHtml == null && singleDirectoryGiven(regionFiles) ) createTileHtml = Boolean.TRUE;
 		
@@ -413,7 +420,7 @@ public class RegionRenderer
 		RegionMap rm = RegionMap.load( regionFiles );
 		RegionRenderer rr = new RegionRenderer( colorMap, debug );
 		
-		rr.renderAll( rm, outputDirname, force );
+		rr.renderAll( rm, outputDir, force );
 		if( debug ) {
 			final Timer tim = rr.timer;
 			System.err.println("Rendered "+tim.regionCount+" regions, "+tim.sectionCount+" sections in "+(tim.total)+"ms");
@@ -425,7 +432,7 @@ public class RegionRenderer
 			System.err.println(tim.formatTime("Total",          tim.total         ));
 		}
 		
-		if( createTileHtml.booleanValue() ) rr.createTileHtml( rm, outputDirname );
+		if( createTileHtml.booleanValue() ) rr.createTileHtml( rm.minX, rm.minZ, rm.maxX, rm.maxZ, outputDir );
 		if( createImageTree.booleanValue() ) rr.createImageTree( rm );
 	}
 }
