@@ -257,7 +257,7 @@ public class RegionRenderer
 		return pad( ""+v, targetLength );
 	}
 		
-	public void renderAll( RegionMap rm, String outputDirname, boolean force ) {
+	public void renderAll( RegionMap rm, String outputDirname, boolean force ) throws IOException {
 		long startTime = System.currentTimeMillis();
 		Region[] regions = rm.xzMap();
 		
@@ -286,7 +286,13 @@ public class RegionRenderer
 			}
 			if( debug ) System.err.println("generating "+imageFilename+"...");
 			
-			BufferedImage bi = render( new RegionFile( r.regionFile ) );
+			RegionFile rf = new RegionFile( r.regionFile );
+			BufferedImage bi;
+			try {
+			   bi = render( rf );
+			} finally {
+			   rf.close();
+			}
 			
 			try {
 				resetInterval();
