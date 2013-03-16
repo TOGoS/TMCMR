@@ -373,21 +373,9 @@ public class RegionRenderer {
     ArrayList<File> regionFiles = new ArrayList<File>();
 
     public void startRegionRenderer(String... args) throws IOException {
-
       String badArgument = extractArguments(args);
       if (badArgument != null)
         printUsageAndExit(badArgument);
-
-      if (regionFiles.size() == 0) {
-        System.err.println("No regions or directories specified.");
-        System.err.println(USAGE);
-        System.exit(1);
-      }
-      if (outputDir == null) {
-        System.err.println("Output directory unspecified.");
-        System.err.println(USAGE);
-        System.exit(1);
-      }
 
       final ColorMap colorMap = colorMapFile == null ?
         ColorMap.loadDefault() :
