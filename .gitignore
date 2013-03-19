@@ -1,3 +1,6 @@
+out
+*.iml
 bin
 .src.lst
 TMCMR.jar
+.idea
