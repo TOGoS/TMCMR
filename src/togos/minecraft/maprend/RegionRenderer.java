@@ -332,6 +332,7 @@ public class RegionRenderer
 	
 	public static final String USAGE =
 		"Usage: TMCMR [options] -o <output-dir> <input-files>\n" +
+		"  -h, -? ; print usage instructions and exit\n" +
 		"  -f     ; force re-render even when images are newer than regions\n" +
 		"  -debug ; be chatty\n" +
 		"  -color-map <file>  ; load a custom color map from the specified file\n" +
@@ -353,88 +354,107 @@ public class RegionRenderer
 		return files.size() == 1 && files.get(0).isDirectory();
 	}
 	
+	//// Command-line processing ////
+	
+	static class RegionRendererCommand
+	{
+		public static RegionRendererCommand fromArguments( String...args ) {
+			RegionRendererCommand m = new RegionRendererCommand();
+			for( int i = 0; i < args.length; ++i ) {
+				if( args[i].charAt(0) != '-' ) {
+					m.regionFiles.add(new File(args[i]));
+				} else if( "-o".equals(args[i]) ) {
+					m.outputDir = new File(args[++i]);
+				} else if( "-f".equals(args[i]) ) {
+					m.forceReRender = true;
+				} else if( "-debug".equals(args[i]) ) {
+					m.debug = true;
+				} else if( "-create-tile-html".equals(args[i]) ) {
+					m.createTileHtml = Boolean.TRUE;
+				} else if( "-create-image-tree".equals(args[i]) ) {
+					m.createImageTree = Boolean.TRUE;
+				} else if( "-color-map".equals(args[i]) ) {
+					m.colorMapFile = new File(args[++i]);
+				} else if( "-h".equals(args[i]) || "-?".equals(args[i]) || "--help".equals(args[i]) || "-help".equals(args[i]) ) {
+					m.printHelpAndExit = true;
+				} else {
+					m.errorMessage = "Unrecognised argument: " + args[i];
+					return m;
+				}
+			}
+			m.errorMessage = validateSettings(m);
+			return m;
+		}
+		
+		private static String validateSettings( RegionRendererCommand m ) {
+			if( m.regionFiles.size() == 0 )
+				return "No regions or directories specified.";
+			else if( m.outputDir == null )
+				return "Output directory unspecified.";
+			else
+				return null;
+		}
+		
+		File outputDir = null;
+		boolean forceReRender = false;
+		boolean debug = false;
+		boolean printHelpAndExit = false;
+		File colorMapFile = null;
+		ArrayList<File> regionFiles = new ArrayList<File>();
+		Boolean createTileHtml = null;
+		Boolean createImageTree = null;
+		
+		String errorMessage = null;
+		
+		static boolean getDefault( Boolean b, boolean defaultValue ) {
+			return b != null ? b.booleanValue() : defaultValue; 
+		}
+		
+		public boolean shouldCreateTileHtml() {
+			return getDefault(this.createTileHtml, singleDirectoryGiven(regionFiles));
+		}
+		
+		public boolean shouldCreateImageTree() {
+			return getDefault(this.createImageTree, false);
+		}
+		
+		public int run() throws IOException {
+			if( errorMessage != null ) {
+				System.err.println( "Error: "+errorMessage );
+				System.err.println( USAGE );
+				return 1;
+			}
+			if( printHelpAndExit ) {
+				System.out.println( USAGE );
+				return 0;
+			}
+			
+			final ColorMap colorMap = colorMapFile == null ? ColorMap
+			        .loadDefault() : ColorMap.load(colorMapFile);
+			
+			RegionMap rm = RegionMap.load(regionFiles);
+			RegionRenderer rr = new RegionRenderer(colorMap, debug);
+			
+			rr.renderAll(rm, outputDir, forceReRender);
+			if( debug ) {
+				final Timer tim = rr.timer;
+				System.err.println("Rendered " + tim.regionCount + " regions, " + tim.sectionCount + " sections in " + (tim.total) + "ms");
+				System.err.println("The following times lines indicate milliseconds total, per region, and per section");
+				System.err.println(tim.formatTime("Loading",         tim.regionLoading));
+				System.err.println(tim.formatTime("Pre-rendering",   tim.preRendering));
+				System.err.println(tim.formatTime("Post-processing", tim.postProcessing));
+				System.err.println(tim.formatTime("Image saving",    tim.imageSaving));
+				System.err.println(tim.formatTime("Total",           tim.total));
+			}
+			
+			if( shouldCreateTileHtml()  ) rr.createTileHtml(rm.minX, rm.minZ, rm.maxX, rm.maxZ, outputDir);
+			if( shouldCreateImageTree() ) rr.createImageTree(rm);
+			
+			return 0;
+		}
+	}
+	
 	public static void main( String[] args ) throws Exception {
-    new Main().startRegionRenderer(args);
-  }
-
-  static class Main {
-    File outputDir = null;
-    boolean force = false;
-    boolean debug = false;
-    Boolean createImageTree = null;
-    File colorMapFile = null;
-    Boolean createTileHtml = null;
-    ArrayList<File> regionFiles = new ArrayList<File>();
-
-    public void startRegionRenderer(String... args) throws IOException {
-      String badArgument = extractArguments(args);
-      if (badArgument != null)
-        printUsageAndExit(badArgument);
-
-      final ColorMap colorMap = colorMapFile == null ?
-        ColorMap.loadDefault() :
-        ColorMap.load(colorMapFile);
-
-      if (createTileHtml == null && singleDirectoryGiven(regionFiles)) createTileHtml = Boolean.TRUE;
-
-      if (createTileHtml == null) createTileHtml = Boolean.FALSE;
-      if (createImageTree == null) createImageTree = Boolean.FALSE;
-
-      RegionMap rm = RegionMap.load(regionFiles);
-      RegionRenderer rr = new RegionRenderer(colorMap, debug);
-
-      rr.renderAll(rm, outputDir, force);
-      if (debug) {
-        final Timer tim = rr.timer;
-        System.err.println("Rendered " + tim.regionCount + " regions, " + tim.sectionCount + " sections in " + (tim.total) + "ms");
-        System.err.println("The following times lines indicate milliseconds total, per region, and per section");
-        System.err.println(tim.formatTime("Loading", tim.regionLoading));
-        System.err.println(tim.formatTime("Pre-rendering", tim.preRendering));
-        System.err.println(tim.formatTime("Post-processing", tim.postProcessing));
-        System.err.println(tim.formatTime("Image saving", tim.imageSaving));
-        System.err.println(tim.formatTime("Total", tim.total));
-      }
-
-      if (createTileHtml.booleanValue()) rr.createTileHtml(rm.minX, rm.minZ, rm.maxX, rm.maxZ, outputDir);
-      if (createImageTree.booleanValue()) rr.createImageTree(rm);
-    }
-
-    String extractArguments(String[] args) {
-      for (int i = 0; i < args.length; ++i) {
-        if (args[i].charAt(0) != '-') {
-          regionFiles.add(new File(args[i]));
-        } else if ("-o".equals(args[i])) {
-          outputDir = new File(args[++i]);
-        } else if ("-f".equals(args[i])) {
-          force = true;
-        } else if ("-debug".equals(args[i])) {
-          debug = true;
-        } else if ("-create-tile-html".equals(args[i])) {
-          createTileHtml = Boolean.TRUE;
-        } else if ("-create-image-tree".equals(args[i])) {
-          createImageTree = Boolean.TRUE;
-        } else if ("-color-map".equals(args[i])) {
-          colorMapFile = new File(args[++i]);
-        } else {
-          return "Unrecognised argument: " + args[i];
-        }
-      }
-      return validateArgs();
-    }
-
-    private String validateArgs() {
-      if (regionFiles.size() == 0)
-        return "No regions or directories specified.";
-      else if (outputDir == null)
-        return "Output directory unspecified.";
-      else
-        return null;
-    }
-
-    private void printUsageAndExit(String message) {
-      System.err.println(message);
-      System.err.println(USAGE);
-      System.exit(1);
-    }
-  }
+		System.exit( RegionRendererCommand.fromArguments( args ).run() );
+	}
 }
