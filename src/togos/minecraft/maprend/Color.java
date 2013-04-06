@@ -73,4 +73,13 @@ public class Color
 			component(c1, 0) * component(c2, 0) / (255)
 		);
 	}
+	
+	public static final int multiplySolid( int c1, int c2 ) {
+	    return color(
+	            component(c1,24),
+	            component(c1,16) * component(c2,16) / (255),
+	            component(c1, 8) * component(c2, 8) / (255),
+	            component(c1, 0) * component(c2, 0) / (255)
+	        );
+	}
 }

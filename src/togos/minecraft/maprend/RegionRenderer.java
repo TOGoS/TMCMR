@@ -88,6 +88,11 @@ public class RegionRenderer
 			int sectionIndex = ((ByteTag)sectionInfo.getValue().get("Y")).getValue().intValue();
 			byte[]  blockIdsLow = ((ByteArrayTag)sectionInfo.getValue().get("Blocks")).getValue();
 			byte[]  blockData   = ((ByteArrayTag)sectionInfo.getValue().get("Data")).getValue();
+			Tag addTag = sectionInfo.getValue().get("Add");
+			byte[] blockAdd = null;
+			if (addTag != null) {
+				blockAdd = ((ByteArrayTag)addTag).getValue();
+			}
 			short[] destSectionBlockIds = sectionBlockIds[sectionIndex];
 			byte[]  destSectionData = sectionBlockData[sectionIndex];
 			sectionsUsed[sectionIndex] = true;
@@ -96,8 +101,9 @@ public class RegionRenderer
 					for( int x=0; x<16; ++x ) {
 						int index = y*256+z*16+x;
 						short blockType = (short) (blockIdsLow[index]&0xFF);
-						// TODO: Add in value from 'Add' << 8
-						
+						if (blockAdd != null) {
+							blockType |= nybble(blockAdd, index)<<8;
+						}
 						destSectionBlockIds[index] = blockType;
 						destSectionData[index] = nybble( blockData, index );
 					}
@@ -342,6 +348,12 @@ public class RegionRenderer
 		System.out.println( itc.compose( rm ) );
 	}
 	
+	public void createBigImage( RegionMap rm, File outputDir) {
+		if( debug ) System.err.println( "Creating big image..." );
+		BigImageMerger bic = new BigImageMerger();
+		bic.createBigImage( rm, outputDir, debug );
+	}
+	
 	public static final String USAGE =
 		"Usage: TMCMR [options] -o <output-dir> <input-files>\n" +
 		"  -h, -? ; print usage instructions and exit\n" +
@@ -350,6 +362,7 @@ public class RegionRenderer
 		"  -color-map <file>  ; load a custom color map from the specified file\n" +
 		"  -create-tile-html  ; generate tiles.html in the output directory\n" +
 		"  -create-image-tree ; generate a PicGrid-compatible image tree\n" +
+		"  -create-big-image  ; merges all rendered images into a single file\n" +
 		"\n" +
 		"Input files may be 'region/' directories or individual '.mca' files.\n" +
 		"\n" +
@@ -385,6 +398,8 @@ public class RegionRenderer
 					m.createTileHtml = Boolean.TRUE;
 				} else if( "-create-image-tree".equals(args[i]) ) {
 					m.createImageTree = Boolean.TRUE;
+				} else if( "-create-big-image".equals(args[i]) ) {
+					m.createBigImage = true;
 				} else if( "-color-map".equals(args[i]) ) {
 					m.colorMapFile = new File(args[++i]);
 				} else if( "-h".equals(args[i]) || "-?".equals(args[i]) || "--help".equals(args[i]) || "-help".equals(args[i]) ) {
@@ -415,6 +430,7 @@ public class RegionRenderer
 		ArrayList<File> regionFiles = new ArrayList<File>();
 		Boolean createTileHtml = null;
 		Boolean createImageTree = null;
+		boolean createBigImage = false;
 		
 		String errorMessage = null;
 		
@@ -461,6 +477,7 @@ public class RegionRenderer
 			
 			if( shouldCreateTileHtml()  ) rr.createTileHtml(rm.minX, rm.minZ, rm.maxX, rm.maxZ, outputDir);
 			if( shouldCreateImageTree() ) rr.createImageTree(rm);
+			if( createBigImage ) rr.createBigImage(rm, outputDir);
 			
 			return 0;
 		}
