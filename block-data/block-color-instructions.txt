@@ -129,8 +129,8 @@
 0x0033	Fire	average	fire_0.png
 0x0034	Monster Spawner	average	mobSpawner.png
 0x0035	Oak Wood Stairs	average	wood.png
-0x0036	Chest
-0x0037	Redstone Wire
+0x0036	Chest	fixed	0xfe6f5739
+0x0037	Redstone Wire	fixed	0x80fa1010
 0x0038	Diamond Ore	average	oreDiamond.png
 0x0039	Block of Diamond	average	blockDiamond.png
 0x003A	Crafting Table	average	workbench_top.png
@@ -153,12 +153,12 @@
 0x003C:0x8	Wet Farmland	average	farmland_wet.png
 0x003D	Furnace	average	furnace_top.png
 0x003E	Burning Furnace	average	furnace_top.png
-0x003F	Sign Post
+0x003F	Sign Post	fixed	0x566f5739
 0x0040	Wooden Door	average	doorWood_upper.png
 0x0041	Ladders	average	ladder.png
 0x0042	Rails	average	rail.png
 0x0043	Cobblestone Stairs	average	stonebrick.png
-0x0044	Wall Sign
+0x0044	Wall Sign	fixed	0x206f5739
 0x0045	Lever	average	lever.png
 0x0046	Stone Pressure Plate	average	stone.png
 0x0047	Iron Door	average	doorIron_upper.png
@@ -175,7 +175,7 @@
 0x0052	Clay Block	average	clay.png
 0x0053	Sugar Cane	average	reeds.png
 0x0054	Jukebox	average	jukebox_top.png
-0x0055	Fence
+0x0055	Fence	fixed	0x8F463822
 0x0056	Pumpkin	average	pumpkin_top.png
 0x0057	Netherrack	average	hellrock.png
 0x0058	Soul Sand	average	hellsand.png
@@ -202,13 +202,13 @@
 0x0068	Pumpkin Stem
 0x0069	Melon Stem
 0x006A	Vines	multiply	average	vine.png	fixed	0x6fc449
-0x006B	Fence Gate
+0x006B	Fence Gate	fixed	0x7b463822
 0x006C	Brick Stairs	average	brick.png
 0x006D	Stone Brick Stairs	average	stonebricksmooth.png
 0x006E	Mycelium	average	mycel_top.png
 0x006F	Lily Pad	multiply	average	waterlily.png	fixed	0x6fc449
 0x0070	Nether Brick	average	netherBrick.png
-0x0071	Nether Brick Fence
+0x0071	Nether Brick Fence	average	netherBrick.png
 0x0072	Nether Brick Stairs	average	netherBrick.png
 0x0073:0x0	Nether Wart	average	netherStalk_0.png
 0x0073:0x1	Nether Wart	average	netherStalk_1.png
@@ -217,7 +217,7 @@
 0x0074	Enchantment Table	average	enchantment_top.png
 0x0075	Brewing Stand	average	brewingStand.png
 0x0076	Cauldron	average	cauldron_inner.png
-0x0077	End Portal
+0x0077	End Portal	fixed	0xFF101010
 0x0078	End Portal Frame	average	endframe_top.png
 0x0079	End Stone	average	whiteStone.png
 0x007A	Dragon Egg	average	dragonEgg.png
@@ -258,7 +258,7 @@
 0x0088	Jungle Wood Stairs	average	wood_jungle.png
 0x0089	Command Block	average	commandBlock.png
 0x008A	Beacon	average	beacon.png
-0x008B	Cobblestone Wall
+0x008B	Cobblestone Wall	average	stonebrick.png
 0x008C	Flower Pot	average	flowerPot.png
 0x008D:0x0	Carrots	average	carrots_0.png
 0x008D:0x1	Carrots	average	carrots_0.png
@@ -279,7 +279,7 @@
 0x008F	Wooden Button
 0x0090	Mob Heads
 0x0091	Anvil	average	anvil_top.png
-0x0092	Trapped Chest
+0x0092	Trapped Chest	fixed	0xfe6f5739
 0x0093	Weighted Pressure Plate (Light)	average	blockGold.png
 0x0094	Weighted Pressure Plate (Heavy)	average	blockIron.png
 0x0095	Redstone Comparator (inactive)	average	comparator.png
