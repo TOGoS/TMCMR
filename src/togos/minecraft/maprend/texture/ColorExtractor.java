@@ -115,9 +115,7 @@ public final class ColorExtractor
 
 	private static ColorInfo getColorFromArgs( String[] args ) throws ColorDescriptionException {
 		ColorInfo res = new ColorInfo();
-
 		getColorRecursive( args, 2, res );
-
 		return res;
 	}
 
@@ -171,9 +169,6 @@ public final class ColorExtractor
 					"# Any block with an ID not specifically mapped to a color after the default\n" +
 					"# mapping will be colored with the default color.\n\n");
 
-			
-			
-			
 			out.write( String.format( "default\t0x%08X\n", DEFAULT_COLOR ) );
 
 			String line;
@@ -242,9 +237,8 @@ public final class ColorExtractor
 		// not used yet
 		// static final int BIOME_COLOR_NONE = 0;
 		// static final int BIOME_COLOR_GRASS = 1;
-		// static final int BIOME_COLOR_FOLIAGE_1 = 2;
-		// static final int BIOME_COLOR_FOLIAGE_2 = 3;
-		// static final int BIOME_COLOR_WATER = 4;
+		// static final int BIOME_COLOR_FOLIAGE = 2;
+		// static final int BIOME_COLOR_WATER = 3;
 
 		int color;
 		int biomeColor;
@@ -252,7 +246,6 @@ public final class ColorExtractor
 
 	private static class ColorDescriptionException extends Exception
 	{
-
 		private static final long serialVersionUID = 1L;
 
 		ColorDescriptionException(String message) {

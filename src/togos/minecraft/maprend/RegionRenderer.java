@@ -88,6 +88,11 @@ public class RegionRenderer
 			int sectionIndex = ((ByteTag)sectionInfo.getValue().get("Y")).getValue().intValue();
 			byte[]  blockIdsLow = ((ByteArrayTag)sectionInfo.getValue().get("Blocks")).getValue();
 			byte[]  blockData   = ((ByteArrayTag)sectionInfo.getValue().get("Data")).getValue();
+			Tag addTag = sectionInfo.getValue().get("Add");
+			byte[] blockAdd = null;
+			if (addTag != null) {
+				blockAdd = ((ByteArrayTag)addTag).getValue();
+			}
 			short[] destSectionBlockIds = sectionBlockIds[sectionIndex];
 			byte[]  destSectionData = sectionBlockData[sectionIndex];
 			sectionsUsed[sectionIndex] = true;
@@ -96,8 +101,9 @@ public class RegionRenderer
 					for( int x=0; x<16; ++x ) {
 						int index = y*256+z*16+x;
 						short blockType = (short) (blockIdsLow[index]&0xFF);
-						// TODO: Add in value from 'Add' << 8
-						
+						if (blockAdd != null) {
+							blockType |= nybble(blockAdd, index)<<8;
+						}
 						destSectionBlockIds[index] = blockType;
 						destSectionData[index] = nybble( blockData, index );
 					}
