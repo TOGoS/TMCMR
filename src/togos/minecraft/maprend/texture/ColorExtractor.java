@@ -87,6 +87,25 @@ public final class ColorExtractor
 			res.color = Color.multiplySolid( infoA.color, infoB.color );
 			res.biomeColor = infoA.biomeColor;
 			return nextIndex;
+		} else if( args[index].equals( "biome" ) ) {
+			if( args.length<=index+1 ) {
+				throw new ColorDescriptionException( "Mode biome expects an additional arguement" );
+			}
+			if( args[index+1].equals( "grass" ) ) {
+				res.biomeColor = ColorInfo.BIOME_COLOR_GRASS;
+			} else if( args[index+1].equals( "foliage" ) ) {
+				res.biomeColor = ColorInfo.BIOME_COLOR_FOLIAGE;
+			} else if( args[index+1].equals( "water" ) ) {
+				res.biomeColor = ColorInfo.BIOME_COLOR_WATER;
+			} else {
+				res.biomeColor = ColorInfo.BIOME_COLOR_NONE;
+			}
+			if( args.length>index+2 ) {
+				return getColorRecursive( args, index+2, res );
+			} else {
+				res.color = 0xFF7F7F7F;
+				return index+2;
+			}
 		}
 
 		throw new ColorDescriptionException( "Unrecognized mode "+args[index] );
@@ -98,7 +117,7 @@ public final class ColorExtractor
 		return res;
 	}
 
-	private static String composeLine( int id, int data, int color, String name ) {
+	private static String composeLine( int id, int data, int color, int biome, String name ) {
 		StringBuilder res = new StringBuilder();
 
 		res.append( String.format( "0x%04X", id&ID_MASK ) );
@@ -107,6 +126,13 @@ public final class ColorExtractor
 		}
 		res.append( '\t' );
 		res.append( String.format( "0x%08X", color ) );
+		if( biome==ColorInfo.BIOME_COLOR_GRASS ) {
+			res.append( "\tbiome_grass" );
+		} else if( biome==ColorInfo.BIOME_COLOR_FOLIAGE ) {
+			res.append( "\tbiome_foliage" );
+		} else if( biome==ColorInfo.BIOME_COLOR_WATER ) {
+			res.append( "\tbiome_water" );
+		}
 		res.append( "\t# " );
 		res.append( name );
 		res.append( '\n' );
@@ -190,7 +216,7 @@ public final class ColorExtractor
 					continue;
 				}
 
-				out.write( composeLine( id, data, color.color, v[1] ) );
+				out.write( composeLine( id, data, color.color, color.biomeColor, v[1] ) );
 
 			}
 
@@ -215,12 +241,10 @@ public final class ColorExtractor
 
 	private static class ColorInfo
 	{
-
-		// not used yet
-		// static final int BIOME_COLOR_NONE = 0;
-		// static final int BIOME_COLOR_GRASS = 1;
-		// static final int BIOME_COLOR_FOLIAGE = 2;
-		// static final int BIOME_COLOR_WATER = 3;
+		static final int BIOME_COLOR_NONE = 0;
+		static final int BIOME_COLOR_GRASS = 1;
+		static final int BIOME_COLOR_FOLIAGE = 2;
+		static final int BIOME_COLOR_WATER = 3;
 
 		int color;
 		int biomeColor;

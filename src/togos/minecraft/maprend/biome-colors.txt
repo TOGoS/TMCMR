@@ -1,0 +1,36 @@
+# This file defines colors for biomes!
+# You can use your own biome map using the -biome-map <file> argument.
+#
+# The format is biome ID, tab, grass color, tab, foliage color, tab, water color, optionally followed by another tab, a pound, and a comment.
+# Tabs are important; don't use spaces or commas!
+#
+# Empty lines and lines starting with # are ignored, too.
+#
+# 'default' must appear before other biome ID -> color mappings
+# Any biome with an ID not specifically mapped to colors after the default
+# mapping will be colored with the default biome color.
+
+default	0xFFFF00FF	0xFF00FFFF	0xFFFFFF00
+0x00	0xFF8EB971	0xFF71A74D	0xFF0064E4	# Oceans	127	191
+0x01	0xFF91BD59	0xFF77AB2F	0xFF00A0D4	# Plains	50	173
+0x02	0xFFBFB755	0xFFAEA42A	0xFF00A0D4	# Desert	0	255
+0x03	0xFF8AB689	0xFF6DA36B	0xFF0028F4	# Extreme Hills	203	239
+0x04	0xFF79C05A	0xFF59AE30	0xFF0098D6	# Forest	76	112
+0x05	0xFF82B593	0xFF63A277	0xFF000EFB	# Taiga	242	244
+0x06	0xFF6AC44E	0xFF45B421	0xFF00B2CF	# Swampland	50	71
+0x07	0xFF8EB971	0xFF71A74D	0xFF0064E4	# River	127	191
+#0x08	Nether
+#0x09	End
+0x0A	0xFF82B593	0xFF63A277	0xFF000EFB	# Frozen Ocean	242	244
+0x0B	0xFF82B593	0xFF63A277	0xFF000EFB	# Frozen River	242	244
+0x0C	0xFF82B593	0xFF63A277	0xFF000EFB	# Ice Plains	242	244
+0x0D	0xFF82B593	0xFF63A277	0xFF000EFB	# Ice Mountains	242	244
+0x0E	0xFF55C93F	0xFF2BBB0F	0xFF00CEC8	# Mushroom Island	25	25
+0x0F	0xFF55C93F	0xFF2BBB0F	0xFF00CEC8	# Mushroom Island Shore	25	25
+0x10	0xFF8EB971	0xFF71A74D	0xFF0064E4	# Beach	127	191
+0x11	0xFFBFB755	0xFFAEA42A	0xFF00A0D4	# Desert Hills	0	255
+0x12	0xFF79C05A	0xFF59AE30	0xFF0098D6	# Forest Hills	76	112
+0x13	0xFF82B593	0xFF63A277	0xFF000EFB	# Taiga Hills	242	244
+0x14	0xFF8AB689	0xFF6DA36B	0xFF0028F4	# Extreme Hills Edge	203	239
+0x15	0xFF53CA37	0xFF29BC05	0xFF00DCC4	# Jungle	0	25
+0x16	0xFF53CA37	0xFF29BC05	0xFF00DCC4	# Jungle Hills	0	25
