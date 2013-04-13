@@ -1,6 +1,8 @@
 package togos.minecraft.maprend;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
@@ -65,6 +67,15 @@ public final class BiomeMap
 			}
 		} catch( IOException e ) {
 			throw new RuntimeException("Error loading built-in biome map", e);
+		}
+	}
+	
+	public static BiomeMap load( File f ) throws IOException {
+		BufferedReader br = new BufferedReader(new FileReader(f));
+		try {
+			return load(br, f.getPath());
+		} finally {
+			br.close();
 		}
 	}
 	

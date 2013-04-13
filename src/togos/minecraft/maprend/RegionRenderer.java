@@ -381,6 +381,7 @@ public class RegionRenderer
 		"  -f     ; force re-render even when images are newer than regions\n" +
 		"  -debug ; be chatty\n" +
 		"  -color-map <file>  ; load a custom color map from the specified file\n" +
+		"  -biome-map <file>  ; load a custom biome color map from the specified file\n" +
 		"  -create-tile-html  ; generate tiles.html in the output directory\n" +
 		"  -create-image-tree ; generate a PicGrid-compatible image tree\n" +
 		"  -create-big-image  ; merges all rendered images into a single file\n" +
@@ -423,6 +424,8 @@ public class RegionRenderer
 					m.createBigImage = true;
 				} else if( "-color-map".equals(args[i]) ) {
 					m.colorMapFile = new File(args[++i]);
+				} else if( "-biome-map".equals(args[i]) ) {
+					m.biomeMapFile = new File(args[++i]);
 				} else if( "-h".equals(args[i]) || "-?".equals(args[i]) || "--help".equals(args[i]) || "-help".equals(args[i]) ) {
 					m.printHelpAndExit = true;
 				} else {
@@ -448,6 +451,7 @@ public class RegionRenderer
 		boolean debug = false;
 		boolean printHelpAndExit = false;
 		File colorMapFile = null;
+		File biomeMapFile = null;
 		ArrayList<File> regionFiles = new ArrayList<File>();
 		Boolean createTileHtml = null;
 		Boolean createImageTree = null;
@@ -478,10 +482,11 @@ public class RegionRenderer
 				return 0;
 			}
 			
-			final ColorMap colorMap = colorMapFile == null ? ColorMap
-			        .loadDefault() : ColorMap.load(colorMapFile);
+			final ColorMap colorMap = colorMapFile == null ? ColorMap.loadDefault() : 
+				ColorMap.load(colorMapFile);
 			        
-			final BiomeMap biomeMap = BiomeMap.loadDefault();
+			final BiomeMap biomeMap = biomeMapFile == null ? BiomeMap.loadDefault() :
+				BiomeMap.load( biomeMapFile );
 			
 			RegionMap rm = RegionMap.load(regionFiles);
 			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, debug);
