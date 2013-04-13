@@ -1,6 +1,6 @@
 0x0000	Air	fixed	0x00000000
 0x0001	Stone	average	stone.png
-0x0002	Grass Block	multiply	average	grass_top.png	fixed	0x88C146
+0x0002	Grass Block	biome	grass	average	grass_top.png
 0x0003	Dirt	average	dirt.png
 0x0004	Cobblestone	average	stonebrick.png
 0x0005:0x0	Oak Wood Planks	average	wood.png
@@ -12,8 +12,8 @@
 0x0006:0x2	Birch Sapling	average	sapling_birch.png
 0x0006:0x3	Jungle Sapling	average	sapling_jungle.png
 0x0007	Bedrock	average	bedrock.png
-0x0008	Water	average	water.png
-0x0009	Staionary Water	average	water.png
+0x0008	Water	biome	water	average	water.png
+0x0009	Staionary Water	biome	water	average	water.png
 0x000A	Lava	average	lava.png
 0x000B	Stationary Lava	average	lava.png
 0x000C	Sand	average	sand.png
@@ -37,22 +37,22 @@
 0x0011:0xD	Spruce Wood	average	tree_spruce.png
 0x0011:0xE	Birch Wood	average	tree_birch.png
 0x0011:0xF	Jungle Wood	average	tree_jungle.png
-0x0012:0x0	Oak Leaves	multiply	average	leaves.png	fixed	0x58AE31
+0x0012:0x0	Oak Leaves	biome	foliage	average	leaves.png
 0x0012:0x1	Spruce Leaves	multiply	average	leaves_spruce.png	fixed	0x2B542B
 0x0012:0x2	Birch Leaves	multiply	average	leaves.png	fixed	0x4D6B2A
-0x0012:0x3	Jungle Leaves	multiply	average	leaves_jungle.png	fixed	0x1EBF02
-0x0012:0x4	Oak Leaves	multiply	average	leaves.png	fixed	0x58AE31
+0x0012:0x3	Jungle Leaves	biome	foliage	average	leaves_jungle.png
+0x0012:0x4	Oak Leaves	biome	foliage	average	leaves.png
 0x0012:0x5	Spruce Leaves	multiply	average	leaves_spruce.png	fixed	0x2B542B
 0x0012:0x6	Birch Leaves	multiply	average	leaves.png	fixed	0x4D6B2A
-0x0012:0x7	Jungle Leaves	multiply	average	leaves_jungle.png	fixed	0x1EBF02
-0x0012:0x8	Oak Leaves	multiply	average	leaves.png	fixed	0x58AE31
+0x0012:0x7	Jungle Leaves	biome	foliage	average	leaves_jungle.png
+0x0012:0x8	Oak Leaves	biome	foliage	average	leaves.png
 0x0012:0x9	Spruce Leaves	multiply	average	leaves_spruce.png	fixed	0x2B542B
 0x0012:0xA	Birch Leaves	multiply	average	leaves.png	fixed	0x4D6B2A
-0x0012:0xB	Jungle Leaves	multiply	average	leaves_jungle.png	fixed	0x1EBF02
-0x0012:0xC	Oak Leaves	multiply	average	leaves.png	fixed	0x58AE31
+0x0012:0xB	Jungle Leaves	biome	foliage	average	leaves_jungle.png
+0x0012:0xC	Oak Leaves	biome	foliage	average	leaves.png
 0x0012:0xD	Spruce Leaves	multiply	average	leaves_spruce.png	fixed	0x2B542B
 0x0012:0xE	Birch Leaves	multiply	average	leaves.png	fixed	0x4D6B2A
-0x0012:0xF	Jungle Leaves	multiply	average	leaves_jungle.png	fixed	0x1EBF02
+0x0012:0xF	Jungle Leaves	biome	foliage	average	leaves_jungle.png
 0x0013	Sponge	average	sponge.png
 0x0014	Glass	average	glass.png
 0x0015	Lapis Lazuli Ore	average	oreLapis.png
@@ -66,8 +66,8 @@
 0x001D	Sticky Piston	average	piston_top_sticky.png
 0x001E	Cobweb	average	web.png
 0x001F:0x0	Shrub	average	deadbush.png
-0x001F:0x1	Grass	multiply	average	tallgrass.png	fixed	0x6fc449
-0x001F:0x2	Fern	multiply	average	fern.png	fixed	0x6fc449
+0x001F:0x1	Grass	biome	grass	average	tallgrass.png
+0x001F:0x2	Fern	biome	grass	average	fern.png
 0x0020	Dead Bush	average	deadbush.png
 0x0021	Piston	average	piston_top.png
 0x0022	Piston Extension
@@ -201,7 +201,7 @@
 0x0067	Melon	average	melon_top.png
 0x0068	Pumpkin Stem
 0x0069	Melon Stem
-0x006A	Vines	multiply	average	vine.png	fixed	0x6fc449
+0x006A	Vines	biome	foliage	average	vine.png
 0x006B	Fence Gate	fixed	0x7b463822
 0x006C	Brick Stairs	average	brick.png
 0x006D	Stone Brick Stairs	average	stonebricksmooth.png
