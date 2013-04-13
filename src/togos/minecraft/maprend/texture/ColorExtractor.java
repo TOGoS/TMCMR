@@ -175,7 +175,15 @@ public final class ColorExtractor
 			in = new BufferedReader( new FileReader( infile ) );
 
 			out = new BufferedWriter( new FileWriter( new File( args[1] ) ) );
-			out.write( "# This file defines colors for blocks!\n"+"# You can use your own color map using the -color-map <file> argument.\n"+"#\n"+"# The format is block ID, optionally colon and metadata, tab, color, optionally followed by another tab, a pound, and a comment.\n"+"# Tabs are important; don't use spaces or commas!\n"+"#\n"+"# Empty lines and lines starting with # are ignored, too.\n"+"#\n"+"# 'default' must appear before other block ID -> color mappings\n"+"# Any block with an ID not specifically mapped to a color after the default\n"+"# mapping will be colored with the default color.\n\n" );
+			out.write( "# This file defines colors for blocks!\n"+
+					"# You can use your own color map using the -color-map <file> argument.\n"+
+					"#\n"+
+					"# The format is block ID, optionally colon and metadata, tab, color, optionally followed by another tab, a pound, and a comment.\n"+
+					"# Tabs are important; don't use spaces or commas!\n"+"#\n"+"# Empty lines and lines starting with # are ignored, too.\n"+
+					"#\n"+
+					"# 'default' must appear before other block ID -> color mappings\n"+
+					"# Any block with an ID not specifically mapped to a color after the default\n"+
+					"# mapping will be colored with the default color.\n\n" );
 
 			out.write( String.format( "default\t0x%08X\n", DEFAULT_COLOR ) );
 

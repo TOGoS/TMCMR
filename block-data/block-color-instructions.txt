@@ -201,7 +201,7 @@
 0x0067	Melon	average	melon_top.png
 0x0068	Pumpkin Stem
 0x0069	Melon Stem
-0x006A	Vines	multiply	average	vine.png	fixed	0x6fc449
+0x006A	Vines	biome	foliage	average	vine.png
 0x006B	Fence Gate	fixed	0x7b463822
 0x006C	Brick Stairs	average	brick.png
 0x006D	Stone Brick Stairs	average	stonebricksmooth.png
