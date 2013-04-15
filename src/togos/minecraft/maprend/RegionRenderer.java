@@ -44,6 +44,7 @@ public class RegionRenderer
 	
 	public final boolean debug;
 	public final ColorMap colorMap;
+	public final BiomeMap biomeMap;
 	public final int air16Color; // Color of 16 air blocks stacked
 	/**
 	 * Alpha below which blocks are considered transparent for purposes of shading
@@ -51,9 +52,10 @@ public class RegionRenderer
 	 */
 	private int shadeOpacityCutoff = 0x20; 
 	
-	public RegionRenderer( ColorMap colorMap, boolean debug ) {
+	public RegionRenderer( ColorMap colorMap, BiomeMap biomeMap, boolean debug ) {
 		if( colorMap == null ) throw new RuntimeException("colorMap cannot be null");
 		this.colorMap = colorMap;
+		this.biomeMap = biomeMap;
 		this.air16Color = Color.overlay( 0, colorMap.getColor(0), 16 );
 		this.debug = debug;
 	}
@@ -78,9 +80,18 @@ public class RegionRenderer
 	 * @param sectionBlockData block data for non-empty sections will be written to sectionBlockData[sectionIndex][blockIndex]
 	 * @param sectionsUsed sectionsUsed[sectionIndex] will be set to true for non-empty sections
 	 */
-	protected static void loadChunkData( CompoundTag levelTag, int maxSectionCount, short[][] sectionBlockIds, byte[][] sectionBlockData, boolean[] sectionsUsed ) {
+	protected static void loadChunkData( CompoundTag levelTag, int maxSectionCount, short[][] sectionBlockIds, byte[][] sectionBlockData, boolean[] sectionsUsed, byte[] biomeIds ) {
 		for( int i=0; i<maxSectionCount; ++i ) {
 			sectionsUsed[i] = false;
+		}
+		
+		Tag biomesTag = levelTag.getValue().get( "Biomes" );
+		if (biomesTag != null) {
+			System.arraycopy( ((ByteArrayTag)biomesTag).getValue(), 0, biomeIds, 0, 16*16 );
+		} else {
+			for(int i = 0; i< 16*16; i++) {
+				biomeIds[i] = -1;
+			}
 		}
 		
 		for( Tag t : ((ListTag)levelTag.getValue().get("Sections")).getValue() ) {
@@ -164,7 +175,8 @@ public class RegionRenderer
 		int maxSectionCount = 16;
 		short[][] sectionBlockIds = new short[maxSectionCount][16*16*16];
 		byte[][] sectionBlockData = new byte[maxSectionCount][16*16*16];
-		boolean[] usedSections = new boolean[maxSectionCount]; 
+		boolean[] usedSections = new boolean[maxSectionCount];
+		byte[] biomeIds = new byte[16*16];
 		
 		for( int cz=0; cz<32; ++cz ) {
 			for( int cx=0; cx<32; ++cx ) {				
@@ -176,7 +188,7 @@ public class RegionRenderer
 					nis = new NBTInputStream(cis);
 					CompoundTag rootTag = (CompoundTag)nis.readTag();
 					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
-					loadChunkData( levelTag, maxSectionCount, sectionBlockIds, sectionBlockData, usedSections );
+					loadChunkData( levelTag, maxSectionCount, sectionBlockIds, sectionBlockData, usedSections, biomeIds );
 					timer.regionLoading += getInterval();
 					
 					for( int s=0; s<maxSectionCount; ++s ) {
@@ -190,6 +202,7 @@ public class RegionRenderer
 						for( int x=0; x<16; ++x ) {
 							int pixelColor = 0;
 							short pixelHeight = 0;
+							int biomeId = biomeIds[z*16+x];
 							
 							for( int s=0; s<maxSectionCount; ++s ) {
 								if( usedSections[s] ) {
@@ -199,7 +212,15 @@ public class RegionRenderer
 									for( int idx=z*16+x, y=0, absY=s*16; y<16; ++y, idx+=256, ++absY ) {
 										final short blockId    =  blockIds[idx];
 										final byte  blockDatum = blockData[idx];
-										final int blockColor = colorMap.getColor( blockId&0xFFFF, blockDatum );
+										int blockColor = colorMap.getColor( blockId&0xFFFF, blockDatum );
+										final int blockInf = colorMap.getInfluence( blockId&0xFFFF, blockDatum  );
+										if (blockInf == ColorMap.INF_GRASS) {
+											blockColor = Color.multiplySolid( blockColor, biomeMap.getGrassColor( biomeId ) );
+										} else if (blockInf == ColorMap.INF_FOLIAGE) {
+											blockColor = Color.multiplySolid( blockColor, biomeMap.getFoliageColor( biomeId ) );
+										} else if (blockInf == ColorMap.INF_WATER) {
+											blockColor = Color.multiplySolid( blockColor, biomeMap.getWaterColor( biomeId ) );
+										}
 										pixelColor = Color.overlay( pixelColor, blockColor );
 										if( Color.alpha(blockColor) >= shadeOpacityCutoff  ) {
 											pixelHeight = (short)absY;
@@ -360,6 +381,7 @@ public class RegionRenderer
 		"  -f     ; force re-render even when images are newer than regions\n" +
 		"  -debug ; be chatty\n" +
 		"  -color-map <file>  ; load a custom color map from the specified file\n" +
+		"  -biome-map <file>  ; load a custom biome color map from the specified file\n" +
 		"  -create-tile-html  ; generate tiles.html in the output directory\n" +
 		"  -create-image-tree ; generate a PicGrid-compatible image tree\n" +
 		"  -create-big-image  ; merges all rendered images into a single file\n" +
@@ -402,6 +424,8 @@ public class RegionRenderer
 					m.createBigImage = true;
 				} else if( "-color-map".equals(args[i]) ) {
 					m.colorMapFile = new File(args[++i]);
+				} else if( "-biome-map".equals(args[i]) ) {
+					m.biomeMapFile = new File(args[++i]);
 				} else if( "-h".equals(args[i]) || "-?".equals(args[i]) || "--help".equals(args[i]) || "-help".equals(args[i]) ) {
 					m.printHelpAndExit = true;
 				} else {
@@ -427,6 +451,7 @@ public class RegionRenderer
 		boolean debug = false;
 		boolean printHelpAndExit = false;
 		File colorMapFile = null;
+		File biomeMapFile = null;
 		ArrayList<File> regionFiles = new ArrayList<File>();
 		Boolean createTileHtml = null;
 		Boolean createImageTree = null;
@@ -457,11 +482,14 @@ public class RegionRenderer
 				return 0;
 			}
 			
-			final ColorMap colorMap = colorMapFile == null ? ColorMap
-			        .loadDefault() : ColorMap.load(colorMapFile);
+			final ColorMap colorMap = colorMapFile == null ? ColorMap.loadDefault() : 
+				ColorMap.load(colorMapFile);
+			        
+			final BiomeMap biomeMap = biomeMapFile == null ? BiomeMap.loadDefault() :
+				BiomeMap.load( biomeMapFile );
 			
 			RegionMap rm = RegionMap.load(regionFiles);
-			RegionRenderer rr = new RegionRenderer(colorMap, debug);
+			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, debug);
 			
 			rr.renderAll(rm, outputDir, forceReRender);
 			if( debug ) {
