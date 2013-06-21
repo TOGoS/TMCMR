@@ -103,6 +103,20 @@ public final class ColorMap
 		return getColor(block, -1);
 	}
 	
+	public int getColor( int blockId, byte blockDatum, int biomeId, BiomeMap biomeMap ) {
+		int blockColor = getColor( blockId, blockDatum );
+		switch( getInfluence( blockId, blockDatum ) ) {
+		case ColorMap.INF_GRASS:
+			return Color.multiplySolid( blockColor, biomeMap.getGrassColor( biomeId ) );
+		case ColorMap.INF_FOLIAGE:
+			return Color.multiplySolid( blockColor, biomeMap.getFoliageColor( biomeId ) );
+		case ColorMap.INF_WATER:
+			return Color.multiplySolid( blockColor, biomeMap.getWaterColor( biomeId ) );
+		default:
+			return blockColor;
+		}
+    }
+	
 	public final int getInfluence(int block, int data) {
 		return colors[block].getInfluence( data );
 	}
@@ -124,7 +138,7 @@ public final class ColorMap
 		private int[] subColors;
 		private int[] subColorInfluences;
 		private boolean[] hasSubColors;
-
+		
 		private BlockColors(int baseColor, int baseInfluence) {
 			this.baseColor = baseColor;
 			this.baseInfluence = baseInfluence;
@@ -141,6 +155,10 @@ public final class ColorMap
 				hasSubColors[blockData] ? subColors[blockData] : baseColor;
 		}
 		
+		/**
+		 * Return an INF_* identifier that specifies how biomes interact
+		 * with this block color
+		 */
 		private final int getInfluence( int blockData ) {
 			return (subColors==null || blockData < 0 || blockData >= subColors.length) ?
 					baseInfluence :

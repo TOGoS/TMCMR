@@ -212,15 +212,7 @@ public class RegionRenderer
 									for( int idx=z*16+x, y=0, absY=s*16; y<16; ++y, idx+=256, ++absY ) {
 										final short blockId    =  blockIds[idx];
 										final byte  blockDatum = blockData[idx];
-										int blockColor = colorMap.getColor( blockId&0xFFFF, blockDatum );
-										final int blockInf = colorMap.getInfluence( blockId&0xFFFF, blockDatum  );
-										if (blockInf == ColorMap.INF_GRASS) {
-											blockColor = Color.multiplySolid( blockColor, biomeMap.getGrassColor( biomeId ) );
-										} else if (blockInf == ColorMap.INF_FOLIAGE) {
-											blockColor = Color.multiplySolid( blockColor, biomeMap.getFoliageColor( biomeId ) );
-										} else if (blockInf == ColorMap.INF_WATER) {
-											blockColor = Color.multiplySolid( blockColor, biomeMap.getWaterColor( biomeId ) );
-										}
+										int blockColor = colorMap.getColor( blockId&0xFFFF, blockDatum, biomeId, biomeMap );
 										pixelColor = Color.overlay( pixelColor, blockColor );
 										if( Color.alpha(blockColor) >= shadeOpacityCutoff  ) {
 											pixelHeight = (short)absY;
