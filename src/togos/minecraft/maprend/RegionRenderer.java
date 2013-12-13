@@ -377,6 +377,9 @@ public class RegionRenderer
 		"  -create-tile-html  ; generate tiles.html in the output directory\n" +
 		"  -create-image-tree ; generate a PicGrid-compatible image tree\n" +
 		"  -create-big-image  ; merges all rendered images into a single file\n" +
+		"  -region-limit-rect <x0> <y0> <x1> <y1> ; limit which regions are rendered\n" +
+		"                     ; to those between the given region coordinates, e.g.\n" +
+		"                     ; 0 0 2 2 to render the 4 regions southeast of the origin.\n" +
 		"\n" +
 		"Input files may be 'region/' directories or individual '.mca' files.\n" +
 		"\n" +
@@ -412,6 +415,12 @@ public class RegionRenderer
 					m.createTileHtml = Boolean.TRUE;
 				} else if( "-create-image-tree".equals(args[i]) ) {
 					m.createImageTree = Boolean.TRUE;
+				} else if( "-region-limit-rect".equals(args[i] ) ) {
+					int minX = Integer.parseInt(args[++i]);
+					int minY = Integer.parseInt(args[++i]);
+					int maxX = Integer.parseInt(args[++i]);
+					int maxY = Integer.parseInt(args[++i]);
+					m.regionLimitRect = new BoundingRect( minX, minY, maxX, maxY );
 				} else if( "-create-big-image".equals(args[i]) ) {
 					m.createBigImage = true;
 				} else if( "-color-map".equals(args[i]) ) {
@@ -448,6 +457,7 @@ public class RegionRenderer
 		Boolean createTileHtml = null;
 		Boolean createImageTree = null;
 		boolean createBigImage = false;
+		BoundingRect regionLimitRect = BoundingRect.INFINITE;
 		
 		String errorMessage = null;
 		
@@ -480,7 +490,7 @@ public class RegionRenderer
 			final BiomeMap biomeMap = biomeMapFile == null ? BiomeMap.loadDefault() :
 				BiomeMap.load( biomeMapFile );
 			
-			RegionMap rm = RegionMap.load(regionFiles);
+			RegionMap rm = RegionMap.load(regionFiles, regionLimitRect);
 			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, debug);
 			
 			rr.renderAll(rm, outputDir, forceReRender);

@@ -12,8 +12,8 @@ public class BigImageMerger
 {
 
 	public void createBigImage( RegionMap rm, File outputDir, boolean debug ) {
-		int width = (rm.maxX-rm.minX+1)*512;
-		int height = (rm.maxZ-rm.minZ+1)*512;
+		int width = (rm.maxX-rm.minX)*512;
+		int height = (rm.maxZ-rm.minZ)*512;
 		BufferedImage bigImage = new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB );
 		if( debug )
 			System.out.println( "Dimension: "+width+", "+height );

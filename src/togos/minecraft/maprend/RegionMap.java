@@ -28,19 +28,19 @@ public class RegionMap
 		regions.add(r);
 		if( r.rx < minX ) minX = r.rx;
 		if( r.rz < minZ ) minZ = r.rz;
-		if( r.rx > maxX ) maxX = r.rx;
-		if( r.rz > maxZ ) maxZ = r.rz;
+		if( r.rx >= maxX ) maxX = r.rx+1;
+		if( r.rz >= maxZ ) maxZ = r.rz+1;
 	}
 		
 	static final Pattern rfpat = Pattern.compile("^r\\.(-?\\d+)\\.(-?\\d+)\\.mca$");
 	
-	protected void add( File dir ) {
+	protected void add( File dir, BoundingRect limit ) {
 		Matcher m;
 		if( dir.isDirectory() ) { 
 			File[] files = dir.listFiles();
 			for( int i=0; i<files.length; ++i ) {
 				m = rfpat.matcher(files[i].getName());
-				if( m.matches() ) add( files[i] );
+				if( m.matches() ) add( files[i], limit );
 			}
 		} else if( (m = rfpat.matcher(dir.getName())).matches() ) {
 			if( !dir.exists() ) {
@@ -51,7 +51,9 @@ public class RegionMap
 			r.rx = Integer.parseInt(m.group(1));
 			r.rz = Integer.parseInt(m.group(2));
 			r.regionFile = dir;
-			addRegion( r );
+			if( r.rx >= limit.minX && r.rx < limit.maxX && r.rz >= limit.minY && r.rz < limit.maxY ) {
+				addRegion( r );
+			}
 		} else {
 			throw new RuntimeException(dir+" does not seem to be a directory or a region file");
 		}
@@ -59,15 +61,15 @@ public class RegionMap
 	
 	//// Le statique ////
 	
-	public static RegionMap load( File file ) {
+	public static RegionMap load( File file, BoundingRect limit ) {
 		RegionMap rm = new RegionMap();
-		rm.add(file);
+		rm.add(file, limit);
 		return rm;
 	}
 	
-	public static RegionMap load( List<File> files ) {
+	public static RegionMap load( List<File> files, BoundingRect limit ) {
 		RegionMap rm = new RegionMap();
-		for( File f : files ) rm.add(f);
+		for( File f : files ) rm.add(f, limit);
 		return rm;
 	}
 }
