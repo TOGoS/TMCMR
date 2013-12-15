@@ -1,5 +1,7 @@
 package togos.minecraft.maprend;
 
+import static togos.minecraft.maprend.IDUtil.parseInt;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -8,23 +10,38 @@ import java.io.InputStreamReader;
 
 public final class BiomeMap
 {
+	public static final class Biome {
+		public final int grassColor;
+		public final int foliageColor;
+		public final int waterColor;
+		public final boolean isDefault;
+		
+		public Biome(int grassColor, int foliageColor, int waterColor, boolean isDefault) {
+			this.grassColor = grassColor;
+			this.foliageColor = foliageColor;
+			this.waterColor = waterColor;
+			this.isDefault = isDefault;
+		}
+		
+		public int getMultiplier( int influence ) {
+			switch( influence ) {
+			case BlockMap.INF_GRASS: return grassColor;
+			case BlockMap.INF_FOLIAGE: return foliageColor;
+			case BlockMap.INF_WATER: return waterColor;
+			default: return 0xFFFFFFFF;
+			}
+		}
+	}
+	
 	public static final int INDEX_MASK = 0xFF;
 	public static final int SIZE = INDEX_MASK + 1;
 	
-	private final Biome defaultBiome;
-	private final Biome[] biomes;
+	public final Biome defaultBiome;
+	public final Biome[] biomes;
 	public BiomeMap(Biome[] biomes, Biome defaultBiome) {
 		this.biomes = biomes;
 		this.defaultBiome = defaultBiome;
 	}
-	
-	protected static int parseInt( String s ) {
-		// Integer.parseInt pukes if the number is too big for a signed integer!
-		// So use Long.parseLong and cast, instead.
-		if( s.startsWith("0x") ) return (int)Long.parseLong(s.substring(2), 16);
-		return (int)Long.parseLong(s);
-	}
-	
 	
 	protected static BiomeMap load(BufferedReader in, String filename) throws IOException {
 		Biome[] biomes = new Biome[SIZE];
@@ -45,14 +62,14 @@ public final class BiomeMap
 			int foliageColor = parseInt(v[2]);
 			int waterColor = parseInt(v[3]);
 			if( "default".equals(v[0]) ) {
-				defaultBiome = new Biome(grassColor, foliageColor, waterColor);
+				defaultBiome = new Biome(grassColor, foliageColor, waterColor, true);
 			} else {
 				int blockId = parseInt( v[0] );
-				biomes[blockId] = new Biome( grassColor, foliageColor, waterColor );
+				biomes[blockId] = new Biome( grassColor, foliageColor, waterColor, false );
 			}
 		}
 		if (defaultBiome == null) {
-			defaultBiome = new Biome( 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF );
+			defaultBiome = new Biome( 0xFFFF00FF, 0xFFFF00FF, 0xFFFF00FF, true );
 		}
 		return new BiomeMap(biomes, defaultBiome);
 	}
@@ -79,33 +96,10 @@ public final class BiomeMap
 		}
 	}
 	
-	private Biome getBiome(int biomeId){
-		if (biomes[biomeId&INDEX_MASK] != null) {
-			return biomes[biomeId&INDEX_MASK];
+	public Biome getBiome( int biomeId ) {
+		if( biomeId >= 0 || biomeId < biomes.length ) {
+			if( biomes[biomeId] != null ) return biomes[biomeId];
 		}
 		return defaultBiome;
-	}
-	
-	public int getGrassColor(int biomeId){
-		return getBiome( biomeId ).grassColor;
-	}
-	
-	public int getFoliageColor(int biomeId){
-		return getBiome( biomeId ).foliageColor;
-	}
-	
-	public int getWaterColor(int biomeId){
-		return getBiome( biomeId ).waterColor;
-	}
-
-	public static final class Biome{
-		final int grassColor;
-		final int foliageColor;
-		final int waterColor;
-		public Biome(int grassColor, int foliageColor, int waterColor) {
-			this.grassColor = grassColor;
-			this.foliageColor = foliageColor;
-			this.waterColor = waterColor;
-		}
 	}
 }

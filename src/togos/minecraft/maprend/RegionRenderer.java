@@ -8,7 +8,9 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.imageio.ImageIO;
 
@@ -19,6 +21,8 @@ import org.jnbt.ListTag;
 import org.jnbt.NBTInputStream;
 import org.jnbt.Tag;
 
+import togos.minecraft.maprend.BiomeMap.Biome;
+import togos.minecraft.maprend.BlockMap.Block;
 import togos.minecraft.maprend.RegionMap.Region;
 import togos.minecraft.maprend.io.ContentStore;
 import togos.minecraft.maprend.io.RegionFile;
@@ -42,8 +46,10 @@ public class RegionRenderer
 	
 	public static final short BASE_HEIGHT = 64;
 	
+	public final Set<Integer> defaultedBlockIds = new HashSet<Integer>();
+	public final Set<Integer> defaultedBiomeIds = new HashSet<Integer>();
 	public final boolean debug;
-	public final ColorMap colorMap;
+	public final BlockMap blockMap;
 	public final BiomeMap biomeMap;
 	public final int air16Color; // Color of 16 air blocks stacked
 	/**
@@ -52,11 +58,13 @@ public class RegionRenderer
 	 */
 	private int shadeOpacityCutoff = 0x20; 
 	
-	public RegionRenderer( ColorMap colorMap, BiomeMap biomeMap, boolean debug ) {
-		if( colorMap == null ) throw new RuntimeException("colorMap cannot be null");
-		this.colorMap = colorMap;
+	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, boolean debug ) {
+		assert blockMap != null;
+		assert biomeMap != null;
+		
+		this.blockMap = blockMap;
 		this.biomeMap = biomeMap;
-		this.air16Color = Color.overlay( 0, colorMap.getColor(0), 16 );
+		this.air16Color = Color.overlay( 0, getColor(0, 0, 0), 16 );
 		this.debug = debug;
 	}
 	
@@ -121,6 +129,47 @@ public class RegionRenderer
 				}
 			}
 		}
+	}
+	
+	//// Color look-up ////
+	
+	protected void defaultedBlockColor( int blockId ) {
+		defaultedBlockIds.add(blockId);
+	}
+	protected void defaultedSubBlockColor( int blockId, int blockDatum ) {
+		defaultedBlockIds.add(blockId | blockDatum << 16);
+	}
+	protected void defaultedBiomeColor( int biomeId ) {
+		defaultedBiomeIds.add(biomeId);
+	}
+	
+	protected int getColor( int blockId, int blockDatum, int biomeId ) {
+		assert blockId >= 0 && blockId < blockMap.blocks.length;
+		assert blockDatum >= 0;
+		
+		int blockColor;
+		int biomeInfluence;
+		
+		Block bc = blockMap.blocks[blockId];
+		if( bc.hasSubColors.length > blockDatum && bc.hasSubColors[blockDatum] ) {
+			blockColor = bc.subColors[blockDatum];
+			biomeInfluence = bc.subColorInfluences[blockDatum];
+		} else {
+			if( blockDatum != 0 ) {
+				defaultedSubBlockColor(blockId, blockDatum);
+			}
+			blockColor = bc.baseColor;
+			biomeInfluence = bc.baseInfluence;
+		}
+		if( bc.isDefault ) {
+			defaultedBlockColor(blockId);
+		}
+		
+		Biome biome = biomeMap.getBiome(biomeId);
+		int biomeColor = biome.getMultiplier( biomeInfluence );
+		if( biome.isDefault ) defaultedBiomeColor(biomeId);
+		
+		return Color.multiplySolid( blockColor, biomeColor );
 	}
 	
 	//// Handy color-manipulation functions ////
@@ -212,7 +261,7 @@ public class RegionRenderer
 									for( int idx=z*16+x, y=0, absY=s*16; y<16; ++y, idx+=256, ++absY ) {
 										final short blockId    =  blockIds[idx];
 										final byte  blockDatum = blockData[idx];
-										int blockColor = colorMap.getColor( blockId&0xFFFF, blockDatum, biomeId, biomeMap );
+										int blockColor = getColor( blockId&0xFFFF, blockDatum, biomeId );
 										pixelColor = Color.overlay( pixelColor, blockColor );
 										if( Color.alpha(blockColor) >= shadeOpacityCutoff  ) {
 											pixelHeight = (short)absY;
@@ -484,8 +533,8 @@ public class RegionRenderer
 				return 0;
 			}
 			
-			final ColorMap colorMap = colorMapFile == null ? ColorMap.loadDefault() : 
-				ColorMap.load(colorMapFile);
+			final BlockMap colorMap = colorMapFile == null ? BlockMap.loadDefault() : 
+				BlockMap.load(colorMapFile);
 			        
 			final BiomeMap biomeMap = biomeMapFile == null ? BiomeMap.loadDefault() :
 				BiomeMap.load( biomeMapFile );
@@ -503,6 +552,35 @@ public class RegionRenderer
 				System.err.println(tim.formatTime("Post-processing", tim.postProcessing));
 				System.err.println(tim.formatTime("Image saving",    tim.imageSaving));
 				System.err.println(tim.formatTime("Total",           tim.total));
+				System.err.println();
+				
+				if( rr.defaultedBlockIds.size() > 0 ) {
+					System.err.println("The following block IDs were not explicitly mapped to colors:");
+					int z=0;
+					for( int blockId : rr.defaultedBlockIds ) {
+						System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
+						System.err.print(IDUtil.blockIdString(blockId));
+						++z;
+					}
+					System.err.println();
+				} else {
+					System.err.println("All block IDs encountered were accounted for in the block color map.");
+				}
+				System.err.println();
+				
+				if( rr.defaultedBiomeIds.size() > 0 ) {
+					System.err.println("The following biome IDs were not explicitly mapped to colors:");
+					int z = 0;
+					for( int biomeId : rr.defaultedBiomeIds ) {
+						System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
+						System.err.print(String.format("0x%02X", biomeId));
+						++z;
+					}
+					System.err.println();
+				} else {
+					System.err.println("All biome IDs encountered were accounted for in the biome color map.");
+				}
+				System.err.println();
 			}
 			
 			if( shouldCreateTileHtml()  ) rr.createTileHtml(rm.minX, rm.minZ, rm.maxX, rm.maxZ, outputDir);
