@@ -97,7 +97,7 @@ public final class BiomeMap
 	}
 	
 	public Biome getBiome( int biomeId ) {
-		if( biomeId >= 0 || biomeId < biomes.length ) {
+		if( biomeId >= 0 && biomeId < biomes.length ) {
 			if( biomes[biomeId] != null ) return biomes[biomeId];
 		}
 		return defaultBiome;
