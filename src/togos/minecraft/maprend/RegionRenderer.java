@@ -47,6 +47,7 @@ public class RegionRenderer
 	public static final short BASE_HEIGHT = 64;
 	
 	public final Set<Integer> defaultedBlockIds = new HashSet<Integer>();
+	public final Set<Integer> defaultedBlockIdDataValues = new HashSet<Integer>();
 	public final Set<Integer> defaultedBiomeIds = new HashSet<Integer>();
 	public final boolean debug;
 	public final BlockMap blockMap;
@@ -137,7 +138,7 @@ public class RegionRenderer
 		defaultedBlockIds.add(blockId);
 	}
 	protected void defaultedSubBlockColor( int blockId, int blockDatum ) {
-		defaultedBlockIds.add(blockId | blockDatum << 16);
+		defaultedBlockIdDataValues.add(blockId | blockDatum << 16);
 	}
 	protected void defaultedBiomeColor( int biomeId ) {
 		defaultedBiomeIds.add(biomeId);
@@ -565,6 +566,21 @@ public class RegionRenderer
 					System.err.println();
 				} else {
 					System.err.println("All block IDs encountered were accounted for in the block color map.");
+				}
+				System.err.println();
+				
+				if( rr.defaultedBlockIdDataValues.size() > 0 ) {
+					System.err.println("The following block ID + data value pairs were not explicitly mapped to colors");
+					System.err.println("(this is not necessarily a problem, as the base IDs were mapped to a color):");
+					int z=0;
+					for( int blockId : rr.defaultedBlockIdDataValues ) {
+						System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
+						System.err.print(IDUtil.blockIdString(blockId));
+						++z;
+					}
+					System.err.println();
+				} else {
+					System.err.println("All block ID + data value pairs encountered were accounted for in the block color map.");
 				}
 				System.err.println();
 				

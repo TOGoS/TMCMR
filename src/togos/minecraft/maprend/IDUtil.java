@@ -11,7 +11,7 @@ public class IDUtil
 	
 	public static String blockIdString( int blockId ) {
 		if( blockId > 0xFFFF ) {
-			return String.format("0x%04X:0x%02X", blockId & 0xFFFF, blockId >> 16);
+			return String.format("0x%04X:0x%01X", blockId & 0xFFFF, blockId >> 16);
 		} else {
 			return String.format("0x%04X", blockId);
 		}
