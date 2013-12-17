@@ -252,7 +252,7 @@ public class RegionRenderer
 						for( int x=0; x<16; ++x ) {
 							int pixelColor = 0;
 							short pixelHeight = 0;
-							int biomeId = biomeIds[z*16+x];
+							int biomeId = biomeIds[z*16+x]&0xFF;
 							
 							for( int s=0; s<maxSectionCount; ++s ) {
 								if( usedSections[s] ) {
