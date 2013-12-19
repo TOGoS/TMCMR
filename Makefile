@@ -13,4 +13,4 @@ TMCMR.jar:
 	mkdir -p bin/META-INF
 	echo 'Version: 1.0' >bin/META-INF/MANIFEST.MF
 	echo 'Main-Class: togos.minecraft.maprend.RegionRenderer' >>bin/META-INF/MANIFEST.MF
-	cd bin ; zip -r ../TMCMR.jar . ; cd ..
+	cd bin ; zip -9 -r ../TMCMR.jar . ; cd ..
