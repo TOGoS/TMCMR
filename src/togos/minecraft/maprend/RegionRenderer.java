@@ -398,7 +398,9 @@ public class RegionRenderer
 				w.write("</tr>\n");
 			}
 			
-			w.write("</table></body></html>");
+			w.write("</table>\n<span style=\"color: cornflowerblue;font-size: smaller;font-family: monospace;display: inline-block;\">");
+			w.write(String.format("Page rendered at: {0}", new Date().toString()));
+			w.write("</span>\n</body></html>");
 			w.close();
 		} catch( IOException e ) {
 			throw new RuntimeException(e);
