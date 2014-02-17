@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -399,7 +400,7 @@ public class RegionRenderer
 			}
 			
 			w.write("</table>\n<span style=\"color: cornflowerblue;font-size: smaller;font-family: monospace;display: inline-block;\">");
-			w.write(String.format("Page rendered at: {0}", new Date().toString()));
+			w.write("Page rendered at "+ new Date().toString());
 			w.write("</span>\n</body></html>");
 			w.close();
 		} catch( IOException e ) {
