@@ -14,10 +14,10 @@ public class ImageTreeComposer
 	}
 	
 	protected static boolean fitsInRadius( RegionMap rmap, int radius ) {
-		if( rmap.minX   < -radius ) return false;
-		if( rmap.maxX+1 >  radius ) return false;
-		if( rmap.minZ   < -radius ) return false;
-		if( rmap.maxZ+1 >  radius ) return false;
+		if( rmap.minX < -radius ) return false;
+		if( rmap.maxX >  radius ) return false;
+		if( rmap.minZ < -radius ) return false;
+		if( rmap.maxZ >  radius ) return false;
 		return true;
 	}
 	

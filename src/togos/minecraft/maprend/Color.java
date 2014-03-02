@@ -73,4 +73,18 @@ public class Color
 			component(c1, 0) * component(c2, 0) / (255)
 		);
 	}
+	
+	/**
+	 * Multiply 2 colors together by multiplying their R, G, and B components.
+	 * Alpha is taken from only the first color.
+	 * This way, the 2nd color acts as a filter.
+	 */
+	public static final int multiplySolid( int c1, int c2 ) {
+	    return color(
+	            component(c1,24),
+	            component(c1,16) * component(c2,16) / (255),
+	            component(c1, 8) * component(c2, 8) / (255),
+	            component(c1, 0) * component(c2, 0) / (255)
+	        );
+	}
 }

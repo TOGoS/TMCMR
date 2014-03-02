@@ -1,37 +1,34 @@
 package togos.minecraft.maprend;
 
-import org.junit.Before;
+import java.io.File;
+
 import org.junit.Test;
 
 import static junit.framework.Assert.*;
-import static junit.framework.Assert.assertEquals;
+import togos.minecraft.maprend.RegionRenderer.RegionRendererCommand;
 
 public class RegionRendererMainTest {
-  private RegionRenderer.Main main;
-
-  @Before
-  public void setUp() throws Exception {
-    main = new RegionRenderer.Main();
-  }
+  private RegionRenderer.RegionRendererCommand main;
 
   @Test
   public void defaultArguments() throws Exception {
+    main = RegionRendererCommand.fromArguments();
     assertNull(main.outputDir);
     assertNull(main.createImageTree);
     assertNull(main.colorMapFile);
     assertNull(main.createTileHtml);
-    assertFalse(main.force);
+    assertFalse(main.forceReRender);
     assertFalse(main.debug);
     assertEquals(0, main.regionFiles.size());
   }
 
-  private String[] toArgs(String argString) {
+  private static String[] toArgs(String argString) {
     return argString.split(" ");
   }
 
   private void extractAndAssertValidArgs(String argString) {
-    String badArg = main.extractArguments(toArgs(argString));
-    assertNull(badArg);
+    main = RegionRendererCommand.fromArguments(toArgs(argString));
+    assertNull(main.errorMessage);
   }
 
   @Test
@@ -53,7 +50,7 @@ public class RegionRendererMainTest {
   @Test
   public void flagArguments() throws Exception {
     extractAndAssertValidArgs("in -o out -f -debug -create-tile-html -create-image-tree");
-    assertTrue(main.force);
+    assertTrue(main.forceReRender);
     assertTrue(main.debug);
     assertTrue(main.createTileHtml);
     assertTrue(main.createImageTree);
@@ -67,20 +64,35 @@ public class RegionRendererMainTest {
 
   @Test
   public void badArgument() throws Exception {
-    String badArg = main.extractArguments(toArgs("-bad"));
-    assertEquals("Unrecognised argument: -bad", badArg);
+    RegionRendererCommand cmd = RegionRendererCommand.fromArguments(toArgs("-bad"));
+    assertEquals("Unrecognised argument: -bad", cmd.errorMessage);
   }
 
   @Test
   public void noRegionFiles() throws Exception {
-    String badArg = main.extractArguments(toArgs("-o out"));
-    assertEquals("No regions or directories specified.", badArg);
+    RegionRendererCommand cmd = RegionRendererCommand.fromArguments(toArgs("-o out"));
+    assertEquals("No regions or directories specified.", cmd.errorMessage);
   }
 
   @Test
   public void noOutputFile() throws Exception {
-    String badArg = main.extractArguments(toArgs("in"));
-    assertEquals("Output directory unspecified.", badArg);
+    RegionRendererCommand cmd = RegionRendererCommand.fromArguments(toArgs("in"));
+    assertEquals("Output directory unspecified.", cmd.errorMessage);
+  }
+  
+  @Test
+  public void createTileDefaultFromDir() throws Exception {
+	File tempDir = new File("temp");
+	if( !tempDir.exists() ) tempDir.mkdirs();
+    RegionRendererCommand cmd = RegionRendererCommand.fromArguments(toArgs("temp"));
+    assertEquals(true, cmd.shouldCreateTileHtml() );
+  }
+  
+  @Test
+  public void createTileDefaultFromRegion() throws Exception {
+    File tempDir = new File("temp");
+    if( !tempDir.exists() ) tempDir.mkdirs();
+    RegionRendererCommand cmd = RegionRendererCommand.fromArguments(toArgs("temp/r.0.0.mca"));
+    assertEquals(false, cmd.shouldCreateTileHtml() );
   }
 }
-

@@ -9,4 +9,5 @@ MakeMap.sh
 makeMap
 MakeMapForce.sh
 MakeMapForce
-
+.settings
+data
