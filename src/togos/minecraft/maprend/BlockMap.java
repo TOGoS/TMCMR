@@ -140,7 +140,7 @@ public final class BlockMap {
     ;
 
     private LineType identifyLineType(String[] mapTokens) {
-      if (mapTokens.length == 0)
+      if (mapTokens.length == 1 && mapTokens[0].isEmpty())
         return LineType.EMPTY;
       else if (mapTokens[0].startsWith("#"))
         return LineType.COMMENT;
