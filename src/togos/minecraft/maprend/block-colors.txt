@@ -2,7 +2,6 @@
 # You can use your own color map using the -color-map <file> argument.
 #
 # The format is block ID, optionally colon and metadata, tab, color, optionally followed by another tab, a pound, and a comment.
-# Tabs are important; don't use spaces or commas!
 #
 # Empty lines and lines starting with # are ignored, too.
 #
