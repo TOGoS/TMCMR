@@ -1,6 +1,6 @@
 .PHONY: all clean
 
-all: TMCMR.jar
+all: clean TMCMR.jar
 
 clean:
 	rm -rf bin TMCMR.jar .src.lst

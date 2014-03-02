@@ -35,7 +35,7 @@ public final class ColorMap
 			if( line.trim().isEmpty() ) continue;
 			if( line.trim().startsWith("#") ) continue;
 			
-			String[] v = line.split("\t", 3);
+			String[] v = line.split("\\s+", 3);
 			if( v.length < 2 ) {
 				System.err.println("Invalid color map line at "+filename+":"+lineNum+": "+line);
 				continue;

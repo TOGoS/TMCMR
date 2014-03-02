@@ -3,4 +3,10 @@ out
 bin
 .src.lst
 TMCMR.jar
+TMCMR.jar.old
 .idea
+MakeMap.sh
+makeMap
+MakeMapForce.sh
+MakeMapForce
+
