@@ -10,7 +10,10 @@ import togos.minecraft.maprend.io.RegionFile;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.util.*;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class RegionRenderer
 {
@@ -346,6 +349,9 @@ public class RegionRenderer
 			} finally {
 			   rf.close();
 			}
+      
+      if (rendererCommand.overlayGrid)
+        new RegionGrid(r.rx, r.rz, 100).overlayGridOnImage(bi);
 			
 			try {
 				resetInterval();
@@ -423,4 +429,5 @@ public class RegionRenderer
   public static void main( String[] args ) throws Exception {
 		System.exit( RegionRendererCommand.fromArguments( args ).run() );
 	}
+
 }
