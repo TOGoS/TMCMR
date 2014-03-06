@@ -1,14 +1,13 @@
 package togos.minecraft.maprend;
 
 import org.junit.Test;
-import togos.minecraft.maprend.RegionRenderer.RegionRendererCommand;
 
 import java.io.File;
 
 import static junit.framework.Assert.*;
 
-public class RegionRendererMainTest {
-  private RegionRenderer.RegionRendererCommand main;
+public class RegionRendererCommandTest {
+  private RegionRendererCommand main;
 
   @Test
   public void defaultArguments() throws Exception {
