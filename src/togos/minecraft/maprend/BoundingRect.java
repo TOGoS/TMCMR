@@ -17,4 +17,16 @@ public class BoundingRect
 		this.maxX = maxX;
 		this.maxY = maxY;
 	}
+
+  public boolean equals(Object obj) {
+    if (obj instanceof BoundingRect) {
+      BoundingRect r = (BoundingRect) obj;
+      return r.minX == minX && r.minY == minY && r.maxX == maxX && r.maxY == maxY;
+    }
+    return false;
+  }
+
+  public String toString() {
+    return String.format("[min:(%d,%d) max:(%d,%d)]",minX, minY, maxX, maxY);
+  }
 }
