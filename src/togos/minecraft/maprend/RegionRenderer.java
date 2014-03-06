@@ -14,7 +14,10 @@ import java.util.*;
 
 public class RegionRenderer
 {
-	static class Timer {
+
+  private RegionRendererCommand rendererCommand;
+
+  static class Timer {
 		public long regionLoading;
 		public long preRendering;
 		public long postProcessing;
@@ -34,7 +37,6 @@ public class RegionRenderer
 	public final Set<Integer> defaultedBlockIds = new HashSet<Integer>();
 	public final Set<Integer> defaultedBlockIdDataValues = new HashSet<Integer>();
 	public final Set<Integer> defaultedBiomeIds = new HashSet<Integer>();
-	public final boolean debug;
 	public final BlockMap blockMap;
 	public final BiomeMap biomeMap;
 	public final int air16Color; // Color of 16 air blocks stacked
@@ -44,14 +46,14 @@ public class RegionRenderer
 	 */
 	private int shadeOpacityCutoff = 0x20; 
 	
-	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, boolean debug ) {
+	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, RegionRendererCommand cmd ) {
+    rendererCommand = cmd;
 		assert blockMap != null;
 		assert biomeMap != null;
 		
 		this.blockMap = blockMap;
 		this.biomeMap = biomeMap;
 		this.air16Color = Color.overlay( 0, getColor(0, 0, 0), 16 );
-		this.debug = debug;
 	}
 	
 	/**
@@ -322,20 +324,20 @@ public class RegionRenderer
 		
 		for( Region r : rm.regions ) {
 			if( r == null ) continue;
-			
-			if( debug ) System.err.print("Region "+pad(r.rx, 4)+", "+pad(r.rz, 4)+"...");
-			
-			String imageFilename = "tile."+r.rx+"."+r.rz+".png";
+
+      debugMessage("Region " + pad(r.rx, 4) + ", " + pad(r.rz, 4) + "...");
+
+      String imageFilename = "tile."+r.rx+"."+r.rz+".png";
 			File imageFile = r.imageFile = new File( outputDir+"/"+imageFilename );
 			
 			if( imageFile.exists() ) {
 				if( !force && imageFile.lastModified() > r.regionFile.lastModified() ) {
-					if( debug ) System.err.println("image already up-to-date");
+					debugMessage("image already up-to-date\n");
 					continue;
 				}
 				imageFile.delete();
 			}
-			if( debug ) System.err.println("generating "+imageFilename+"...");
+			debugMessage("generating " + imageFilename + "...\n");
 			
 			RegionFile rf = new RegionFile( r.regionFile );
 			BufferedImage bi;
@@ -357,14 +359,20 @@ public class RegionRenderer
 		}
 		timer.total += System.currentTimeMillis() - startTime;
 	}
-	
-	/**
+
+  private void debugMessage(String debugMessage) {
+    if( rendererCommand.debug ) {
+      System.err.print(debugMessage);
+    }
+  }
+
+  /**
 	 * Create a "tiles.html" file containing a table with
 	 * all region images (tile.<x>.<z>.png) that exist in outDir
 	 * within the given bounds (inclusive)
 	 */
 	public void createTileHtml( int minX, int minZ, int maxX, int maxZ, File outputDir ) {
-		if( debug ) System.err.println("Writing HTML tiles...");
+		debugMessage("Writing HTML tiles...\n");
 		try {
 			Writer w = new OutputStreamWriter(new FileOutputStream(new File(outputDir+"/tiles.html")));
 			w.write("<html><body style=\"background:black\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n");
@@ -393,15 +401,15 @@ public class RegionRenderer
 	}
 	
 	public void createImageTree( RegionMap rm ) {
-		if( debug ) System.err.println("Composing image tree...");
+		debugMessage("Composing image tree...\n");
 		ImageTreeComposer itc = new ImageTreeComposer(new ContentStore());
 		System.out.println( itc.compose( rm ) );
 	}
 	
 	public void createBigImage( RegionMap rm, File outputDir) {
-		if( debug ) System.err.println( "Creating big image..." );
+		debugMessage("Creating big image...\n");
 		BigImageMerger bic = new BigImageMerger();
-		bic.createBigImage( rm, outputDir, debug );
+		bic.createBigImage( rm, outputDir, rendererCommand.debug );
 	}
 	
 	public static final String USAGE =
@@ -437,7 +445,20 @@ public class RegionRenderer
 	
 	static class RegionRendererCommand
 	{
-		public static RegionRendererCommand fromArguments( String...args ) {
+    File outputDir = null;
+    boolean forceReRender = false;
+    boolean debug = false;
+    boolean printHelpAndExit = false;
+    File colorMapFile = null;
+    File biomeMapFile = null;
+    ArrayList<File> regionFiles = new ArrayList<File>();
+    Boolean createTileHtml = null;
+    Boolean createImageTree = null;
+    boolean createBigImage = false;
+    BoundingRect regionLimitRect = BoundingRect.INFINITE;
+    public boolean overlayGrid = false;
+
+    public static RegionRendererCommand fromArguments( String...args ) {
 			RegionRendererCommand m = new RegionRendererCommand();
 			for( int i = 0; i < args.length; ++i ) {
 				if( args[i].charAt(0) != '-' ) {
@@ -448,6 +469,8 @@ public class RegionRenderer
 					m.forceReRender = true;
 				} else if( "-debug".equals(args[i]) ) {
 					m.debug = true;
+        } else if ("-grid".equals(args[i])) {
+          m.overlayGrid = true;
 				} else if( "-create-tile-html".equals(args[i]) ) {
 					m.createTileHtml = Boolean.TRUE;
 				} else if( "-create-image-tree".equals(args[i]) ) {
@@ -474,7 +497,7 @@ public class RegionRenderer
 			m.errorMessage = validateSettings(m);
 			return m;
 		}
-		
+
 		private static String validateSettings( RegionRendererCommand m ) {
 			if( m.regionFiles.size() == 0 )
 				return "No regions or directories specified.";
@@ -483,19 +506,7 @@ public class RegionRenderer
 			else
 				return null;
 		}
-		
-		File outputDir = null;
-		boolean forceReRender = false;
-		boolean debug = false;
-		boolean printHelpAndExit = false;
-		File colorMapFile = null;
-		File biomeMapFile = null;
-		ArrayList<File> regionFiles = new ArrayList<File>();
-		Boolean createTileHtml = null;
-		Boolean createImageTree = null;
-		boolean createBigImage = false;
-		BoundingRect regionLimitRect = BoundingRect.INFINITE;
-		
+
 		String errorMessage = null;
 		
 		static boolean getDefault( Boolean b, boolean defaultValue ) {
@@ -528,7 +539,7 @@ public class RegionRenderer
 				BiomeMap.load( biomeMapFile );
 			
 			RegionMap rm = RegionMap.load(regionFiles, regionLimitRect);
-			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, debug);
+			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, this);
 			
 			rr.renderAll(rm, outputDir, forceReRender);
 			if( debug ) {

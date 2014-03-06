@@ -24,6 +24,7 @@ public class RegionRendererMainTest {
     assertFalse(main.printHelpAndExit);
     assertEquals(0, main.regionFiles.size());
     assertEquals(BoundingRect.INFINITE, main.regionLimitRect);
+    assertFalse(main.overlayGrid);
   }
 
   private static String[] toArgs(String argString) {
@@ -55,13 +56,14 @@ public class RegionRendererMainTest {
   public void flagArguments() throws Exception {
     extractAndAssertValidArgs("in -o out -f " +
       "-debug -create-tile-html -create-image-tree " +
-      "-create-big-image -h");
+      "-create-big-image -h -grid");
     assertTrue(main.forceReRender);
     assertTrue(main.debug);
     assertTrue(main.createTileHtml);
     assertTrue(main.createImageTree);
     assertTrue(main.createBigImage);
     assertTrue(main.printHelpAndExit);
+    assertTrue(main.overlayGrid);
   }
 
   @Test
