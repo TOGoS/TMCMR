@@ -45,8 +45,6 @@ public class RegionRenderer
 		}
 	}
 	
-	public static final short BASE_HEIGHT = 64;
-	
 	public final Set<Integer> defaultedBlockIds = new HashSet<Integer>();
 	public final Set<Integer> defaultedBlockIdDataValues = new HashSet<Integer>();
 	public final Set<Integer> defaultedBiomeIds = new HashSet<Integer>();
@@ -54,13 +52,16 @@ public class RegionRenderer
 	public final BlockMap blockMap;
 	public final BiomeMap biomeMap;
 	public final int air16Color; // Color of 16 air blocks stacked
+	public final int baseAltitude;
+	public final int minShading;
+	public final int maxShading;
 	/**
 	 * Alpha below which blocks are considered transparent for purposes of shading
 	 * (i.e. blocks with alpha < this will not be shaded, but blocks below them will be)
 	 */
 	private int shadeOpacityCutoff = 0x20; 
 	
-	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, boolean debug ) {
+	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, boolean debug, int baseAltitude, int minShading, int maxShading) {
 		assert blockMap != null;
 		assert biomeMap != null;
 		
@@ -68,6 +69,9 @@ public class RegionRenderer
 		this.biomeMap = biomeMap;
 		this.air16Color = Color.overlay( 0, getColor(0, 0, 0), 16 );
 		this.debug = debug;
+		this.baseAltitude = baseAltitude;
+		this.minShading = minShading;
+		this.maxShading = maxShading;
 	}
 	
 	/**
@@ -202,7 +206,9 @@ public class RegionRenderer
 				if( shade >  10 ) shade =  10;
 				if( shade < -10 ) shade = -10;
 				
-				shade += (height[idx] - BASE_HEIGHT) / 7.0;
+				shade += (height[idx] - baseAltitude) / 7.0;
+				if( shade > maxShading ) shade = maxShading;
+				if( shade < minShading ) shade = minShading;
 				
 				color[idx] = Color.shade( color[idx], (int)(shade*8) );
 			}
@@ -424,6 +430,7 @@ public class RegionRenderer
 		"Usage: TMCMR [options] -o <output-dir> <input-files>\n" +
 		"  -h, -? ; print usage instructions and exit\n" +
 		"  -f     ; force re-render even when images are newer than regions\n" +
+		"  -b     ; change reference altitude for shading (default 64)\n" +
 		"  -debug ; be chatty\n" +
 		"  -color-map <file>  ; load a custom color map from the specified file\n" +
 		"  -biome-map <file>  ; load a custom biome color map from the specified file\n" +
@@ -433,6 +440,8 @@ public class RegionRenderer
 		"  -region-limit-rect <x0> <y0> <x1> <y1> ; limit which regions are rendered\n" +
 		"                     ; to those between the given region coordinates, e.g.\n" +
 		"                     ; 0 0 2 2 to render the 4 regions southeast of the origin.\n" +
+		"  -min-shading <x>   ; lowest shading modifier (default -20)\n" +
+		"  -max-shading <x>   ; highest shading modifier (default 20)\n" +
 		"\n" +
 		"Input files may be 'region/' directories or individual '.mca' files.\n" +
 		"\n" +
@@ -462,6 +471,8 @@ public class RegionRenderer
 					m.outputDir = new File(args[++i]);
 				} else if( "-f".equals(args[i]) ) {
 					m.forceReRender = true;
+				} else if( "-b".equals(args[i]) ) {
+					m.baseAltitude = Integer.parseInt(args[++i]);
 				} else if( "-debug".equals(args[i]) ) {
 					m.debug = true;
 				} else if( "-create-tile-html".equals(args[i]) ) {
@@ -480,6 +491,10 @@ public class RegionRenderer
 					m.colorMapFile = new File(args[++i]);
 				} else if( "-biome-map".equals(args[i]) ) {
 					m.biomeMapFile = new File(args[++i]);
+				} else if( "-min-shading".equals(args[i]) ) {
+					m.minShadingAmount = Integer.parseInt(args[++i]);
+				} else if( "-max-shading".equals(args[i]) ) {
+					m.maxShadingAmount = Integer.parseInt(args[++i]);
 				} else if( "-h".equals(args[i]) || "-?".equals(args[i]) || "--help".equals(args[i]) || "-help".equals(args[i]) ) {
 					m.printHelpAndExit = true;
 				} else {
@@ -511,6 +526,9 @@ public class RegionRenderer
 		Boolean createImageTree = null;
 		boolean createBigImage = false;
 		BoundingRect regionLimitRect = BoundingRect.INFINITE;
+		int baseAltitude = 64;
+		int minShadingAmount = -20;
+		int maxShadingAmount = 20; 
 		
 		String errorMessage = null;
 		
@@ -544,7 +562,7 @@ public class RegionRenderer
 				BiomeMap.load( biomeMapFile );
 			
 			RegionMap rm = RegionMap.load(regionFiles, regionLimitRect);
-			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, debug);
+			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, debug, baseAltitude, minShadingAmount, maxShadingAmount);
 			
 			rr.renderAll(rm, outputDir, forceReRender);
 			if( debug ) {
