@@ -1,36 +1,26 @@
 package togos.minecraft.maprend;
 
-import java.awt.image.BufferedImage;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import javax.imageio.ImageIO;
-
-import org.jnbt.ByteArrayTag;
-import org.jnbt.ByteTag;
-import org.jnbt.CompoundTag;
-import org.jnbt.ListTag;
-import org.jnbt.NBTInputStream;
-import org.jnbt.Tag;
-
+import org.jnbt.*;
 import togos.minecraft.maprend.BiomeMap.Biome;
 import togos.minecraft.maprend.BlockMap.Block;
 import togos.minecraft.maprend.RegionMap.Region;
 import togos.minecraft.maprend.io.ContentStore;
 import togos.minecraft.maprend.io.RegionFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 public class RegionRenderer
 {
-	static class Timer {
+
+  private RegionRendererCommand rendererCommand;
+
+  static class Timer {
 		public long regionLoading;
 		public long preRendering;
 		public long postProcessing;
@@ -50,7 +40,6 @@ public class RegionRenderer
 	public final Set<Integer> defaultedBlockIds = new HashSet<Integer>();
 	public final Set<Integer> defaultedBlockIdDataValues = new HashSet<Integer>();
 	public final Set<Integer> defaultedBiomeIds = new HashSet<Integer>();
-	public final boolean debug;
 	public final BlockMap blockMap;
 	public final BiomeMap biomeMap;
 	public final int air16Color; // Color of 16 air blocks stacked
@@ -60,14 +49,14 @@ public class RegionRenderer
 	 */
 	private int shadeOpacityCutoff = 0x20; 
 	
-	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, boolean debug ) {
+	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, RegionRendererCommand cmd ) {
+    rendererCommand = cmd;
 		assert blockMap != null;
 		assert biomeMap != null;
 		
 		this.blockMap = blockMap;
 		this.biomeMap = biomeMap;
 		this.air16Color = Color.overlay( 0, getColor(0, 0, 0), 16 );
-		this.debug = debug;
 	}
 	
 	/**
@@ -338,20 +327,20 @@ public class RegionRenderer
 		
 		for( Region r : rm.regions ) {
 			if( r == null ) continue;
-			
-			if( debug ) System.err.print("Region "+pad(r.rx, 4)+", "+pad(r.rz, 4)+"...");
-			
-			String imageFilename = "tile."+r.rx+"."+r.rz+".png";
+
+      debugMessage("Region " + pad(r.rx, 4) + ", " + pad(r.rz, 4) + "...");
+
+      String imageFilename = "tile."+r.rx+"."+r.rz+".png";
 			File imageFile = r.imageFile = new File( outputDir+"/"+imageFilename );
 			
 			if( imageFile.exists() ) {
 				if( !force && imageFile.lastModified() > r.regionFile.lastModified() ) {
-					if( debug ) System.err.println("image already up-to-date");
+					debugMessage("image already up-to-date\n");
 					continue;
 				}
 				imageFile.delete();
 			}
-			if( debug ) System.err.println("generating "+imageFilename+"...");
+			debugMessage("generating " + imageFilename + "...\n");
 			
 			RegionFile rf = new RegionFile( r.regionFile );
 			BufferedImage bi;
@@ -360,6 +349,9 @@ public class RegionRenderer
 			} finally {
 			   rf.close();
 			}
+      
+      if (rendererCommand.overlayGrid)
+        new RegionGrid(r.rx, r.rz, 100).overlayGridOnImage(bi);
 			
 			try {
 				resetInterval();
@@ -373,14 +365,20 @@ public class RegionRenderer
 		}
 		timer.total += System.currentTimeMillis() - startTime;
 	}
-	
-	/**
+
+  private void debugMessage(String debugMessage) {
+    if( rendererCommand.debug ) {
+      System.err.print(debugMessage);
+    }
+  }
+
+  /**
 	 * Create a "tiles.html" file containing a table with
 	 * all region images (tile.<x>.<z>.png) that exist in outDir
 	 * within the given bounds (inclusive)
 	 */
 	public void createTileHtml( int minX, int minZ, int maxX, int maxZ, File outputDir ) {
-		if( debug ) System.err.println("Writing HTML tiles...");
+		debugMessage("Writing HTML tiles...\n");
 		try {
 			Writer w = new OutputStreamWriter(new FileOutputStream(new File(outputDir+"/tiles.html")));
 			w.write("<html><body style=\"background:black\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n");
@@ -409,208 +407,27 @@ public class RegionRenderer
 	}
 	
 	public void createImageTree( RegionMap rm ) {
-		if( debug ) System.err.println("Composing image tree...");
+		debugMessage("Composing image tree...\n");
 		ImageTreeComposer itc = new ImageTreeComposer(new ContentStore());
 		System.out.println( itc.compose( rm ) );
 	}
 	
 	public void createBigImage( RegionMap rm, File outputDir) {
-		if( debug ) System.err.println( "Creating big image..." );
+		debugMessage("Creating big image...\n");
 		BigImageMerger bic = new BigImageMerger();
-		bic.createBigImage( rm, outputDir, debug );
+		bic.createBigImage( rm, outputDir, rendererCommand.debug );
 	}
-	
-	public static final String USAGE =
-		"Usage: TMCMR [options] -o <output-dir> <input-files>\n" +
-		"  -h, -? ; print usage instructions and exit\n" +
-		"  -f     ; force re-render even when images are newer than regions\n" +
-		"  -debug ; be chatty\n" +
-		"  -color-map <file>  ; load a custom color map from the specified file\n" +
-		"  -biome-map <file>  ; load a custom biome color map from the specified file\n" +
-		"  -create-tile-html  ; generate tiles.html in the output directory\n" +
-		"  -create-image-tree ; generate a PicGrid-compatible image tree\n" +
-		"  -create-big-image  ; merges all rendered images into a single file\n" +
-		"  -region-limit-rect <x0> <y0> <x1> <y1> ; limit which regions are rendered\n" +
-		"                     ; to those between the given region coordinates, e.g.\n" +
-		"                     ; 0 0 2 2 to render the 4 regions southeast of the origin.\n" +
-		"\n" +
-		"Input files may be 'region/' directories or individual '.mca' files.\n" +
-		"\n" +
-		"tiles.html will always be generated if a single directory is given as input.\n" +
-		"\n" +
-		"Compound image tree blobs will be written to ~/.ccouch/data/tmcmr/\n" +
-		"Compound images can then be rendered with PicGrid.";
-	
-	protected static final boolean booleanValue( Boolean b, boolean defalt ) {
+
+  protected static final boolean booleanValue( Boolean b, boolean defalt ) {
 		return b == null ? defalt : b.booleanValue();
 	}
 	
 	protected static boolean singleDirectoryGiven( List<File> files ) {
 		return files.size() == 1 && files.get(0).isDirectory();
 	}
-	
-	//// Command-line processing ////
-	
-	static class RegionRendererCommand
-	{
-		public static RegionRendererCommand fromArguments( String...args ) {
-			RegionRendererCommand m = new RegionRendererCommand();
-			for( int i = 0; i < args.length; ++i ) {
-				if( args[i].charAt(0) != '-' ) {
-					m.regionFiles.add(new File(args[i]));
-				} else if( "-o".equals(args[i]) ) {
-					m.outputDir = new File(args[++i]);
-				} else if( "-f".equals(args[i]) ) {
-					m.forceReRender = true;
-				} else if( "-debug".equals(args[i]) ) {
-					m.debug = true;
-				} else if( "-create-tile-html".equals(args[i]) ) {
-					m.createTileHtml = Boolean.TRUE;
-				} else if( "-create-image-tree".equals(args[i]) ) {
-					m.createImageTree = Boolean.TRUE;
-				} else if( "-region-limit-rect".equals(args[i] ) ) {
-					int minX = Integer.parseInt(args[++i]);
-					int minY = Integer.parseInt(args[++i]);
-					int maxX = Integer.parseInt(args[++i]);
-					int maxY = Integer.parseInt(args[++i]);
-					m.regionLimitRect = new BoundingRect( minX, minY, maxX, maxY );
-				} else if( "-create-big-image".equals(args[i]) ) {
-					m.createBigImage = true;
-				} else if( "-color-map".equals(args[i]) ) {
-					m.colorMapFile = new File(args[++i]);
-				} else if( "-biome-map".equals(args[i]) ) {
-					m.biomeMapFile = new File(args[++i]);
-				} else if( "-h".equals(args[i]) || "-?".equals(args[i]) || "--help".equals(args[i]) || "-help".equals(args[i]) ) {
-					m.printHelpAndExit = true;
-				} else {
-					m.errorMessage = "Unrecognised argument: " + args[i];
-					return m;
-				}
-			}
-			m.errorMessage = validateSettings(m);
-			return m;
-		}
-		
-		private static String validateSettings( RegionRendererCommand m ) {
-			if( m.regionFiles.size() == 0 )
-				return "No regions or directories specified.";
-			else if( m.outputDir == null )
-				return "Output directory unspecified.";
-			else
-				return null;
-		}
-		
-		File outputDir = null;
-		boolean forceReRender = false;
-		boolean debug = false;
-		boolean printHelpAndExit = false;
-		File colorMapFile = null;
-		File biomeMapFile = null;
-		ArrayList<File> regionFiles = new ArrayList<File>();
-		Boolean createTileHtml = null;
-		Boolean createImageTree = null;
-		boolean createBigImage = false;
-		BoundingRect regionLimitRect = BoundingRect.INFINITE;
-		
-		String errorMessage = null;
-		
-		static boolean getDefault( Boolean b, boolean defaultValue ) {
-			return b != null ? b.booleanValue() : defaultValue; 
-		}
-		
-		public boolean shouldCreateTileHtml() {
-			return getDefault(this.createTileHtml, singleDirectoryGiven(regionFiles));
-		}
-		
-		public boolean shouldCreateImageTree() {
-			return getDefault(this.createImageTree, false);
-		}
-		
-		public int run() throws IOException {
-			if( errorMessage != null ) {
-				System.err.println( "Error: "+errorMessage );
-				System.err.println( USAGE );
-				return 1;
-			}
-			if( printHelpAndExit ) {
-				System.out.println( USAGE );
-				return 0;
-			}
-			
-			final BlockMap colorMap = colorMapFile == null ? BlockMap.loadDefault() : 
-				BlockMap.load(colorMapFile);
-			        
-			final BiomeMap biomeMap = biomeMapFile == null ? BiomeMap.loadDefault() :
-				BiomeMap.load( biomeMapFile );
-			
-			RegionMap rm = RegionMap.load(regionFiles, regionLimitRect);
-			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, debug);
-			
-			rr.renderAll(rm, outputDir, forceReRender);
-			if( debug ) {
-				final Timer tim = rr.timer;
-				System.err.println("Rendered " + tim.regionCount + " regions, " + tim.sectionCount + " sections in " + (tim.total) + "ms");
-				System.err.println("The following times lines indicate milliseconds total, per region, and per section");
-				System.err.println(tim.formatTime("Loading",         tim.regionLoading));
-				System.err.println(tim.formatTime("Pre-rendering",   tim.preRendering));
-				System.err.println(tim.formatTime("Post-processing", tim.postProcessing));
-				System.err.println(tim.formatTime("Image saving",    tim.imageSaving));
-				System.err.println(tim.formatTime("Total",           tim.total));
-				System.err.println();
-				
-				if( rr.defaultedBlockIds.size() > 0 ) {
-					System.err.println("The following block IDs were not explicitly mapped to colors:");
-					int z=0;
-					for( int blockId : rr.defaultedBlockIds ) {
-						System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
-						System.err.print(IDUtil.blockIdString(blockId));
-						++z;
-					}
-					System.err.println();
-				} else {
-					System.err.println("All block IDs encountered were accounted for in the block color map.");
-				}
-				System.err.println();
-				
-				if( rr.defaultedBlockIdDataValues.size() > 0 ) {
-					System.err.println("The following block ID + data value pairs were not explicitly mapped to colors");
-					System.err.println("(this is not necessarily a problem, as the base IDs were mapped to a color):");
-					int z=0;
-					for( int blockId : rr.defaultedBlockIdDataValues ) {
-						System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
-						System.err.print(IDUtil.blockIdString(blockId));
-						++z;
-					}
-					System.err.println();
-				} else {
-					System.err.println("All block ID + data value pairs encountered were accounted for in the block color map.");
-				}
-				System.err.println();
-				
-				if( rr.defaultedBiomeIds.size() > 0 ) {
-					System.err.println("The following biome IDs were not explicitly mapped to colors:");
-					int z = 0;
-					for( int biomeId : rr.defaultedBiomeIds ) {
-						System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
-						System.err.print(String.format("0x%02X", biomeId));
-						++z;
-					}
-					System.err.println();
-				} else {
-					System.err.println("All biome IDs encountered were accounted for in the biome color map.");
-				}
-				System.err.println();
-			}
-			
-			if( shouldCreateTileHtml()  ) rr.createTileHtml(rm.minX, rm.minZ, rm.maxX, rm.maxZ, outputDir);
-			if( shouldCreateImageTree() ) rr.createImageTree(rm);
-			if( createBigImage ) rr.createBigImage(rm, outputDir);
-			
-			return 0;
-		}
-	}
-	
-	public static void main( String[] args ) throws Exception {
+
+  public static void main( String[] args ) throws Exception {
 		System.exit( RegionRendererCommand.fromArguments( args ).run() );
 	}
+
 }

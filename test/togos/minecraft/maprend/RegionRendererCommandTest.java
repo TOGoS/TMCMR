@@ -1,14 +1,13 @@
 package togos.minecraft.maprend;
 
-import java.io.File;
-
 import org.junit.Test;
 
-import static junit.framework.Assert.*;
-import togos.minecraft.maprend.RegionRenderer.RegionRendererCommand;
+import java.io.File;
 
-public class RegionRendererMainTest {
-  private RegionRenderer.RegionRendererCommand main;
+import static junit.framework.Assert.*;
+
+public class RegionRendererCommandTest {
+  private RegionRendererCommand main;
 
   @Test
   public void defaultArguments() throws Exception {
@@ -16,10 +15,15 @@ public class RegionRendererMainTest {
     assertNull(main.outputDir);
     assertNull(main.createImageTree);
     assertNull(main.colorMapFile);
+    assertNull(main.biomeMapFile);
     assertNull(main.createTileHtml);
     assertFalse(main.forceReRender);
     assertFalse(main.debug);
+    assertFalse(main.createBigImage);
+    assertFalse(main.printHelpAndExit);
     assertEquals(0, main.regionFiles.size());
+    assertEquals(BoundingRect.INFINITE, main.regionLimitRect);
+    assertFalse(main.overlayGrid);
   }
 
   private static String[] toArgs(String argString) {
@@ -49,17 +53,29 @@ public class RegionRendererMainTest {
 
   @Test
   public void flagArguments() throws Exception {
-    extractAndAssertValidArgs("in -o out -f -debug -create-tile-html -create-image-tree");
+    extractAndAssertValidArgs("in -o out -f " +
+      "-debug -create-tile-html -create-image-tree " +
+      "-create-big-image -h -grid");
     assertTrue(main.forceReRender);
     assertTrue(main.debug);
     assertTrue(main.createTileHtml);
     assertTrue(main.createImageTree);
+    assertTrue(main.createBigImage);
+    assertTrue(main.printHelpAndExit);
+    assertTrue(main.overlayGrid);
   }
 
   @Test
   public void colorMapArgument() throws Exception {
-    extractAndAssertValidArgs("in -o out -color-map cm");
+    extractAndAssertValidArgs("in -o out -color-map cm -biome-map bm");
     assertEquals("cm", main.colorMapFile.getName());
+    assertEquals("bm", main.biomeMapFile.getName());
+  }
+
+  @Test
+  public void regionLimitRectangle() throws Exception {
+    extractAndAssertValidArgs("in -o out -region-limit-rect 1 2 3 4");
+    assertEquals(new BoundingRect(1, 2, 3, 4), main.regionLimitRect);
   }
 
   @Test
