@@ -54,13 +54,16 @@ public class RegionRenderer
 	public final BlockMap blockMap;
 	public final BiomeMap biomeMap;
 	public final int air16Color; // Color of 16 air blocks stacked
+	public final int minHeight;
+	public final int maxHeight;
+	
 	/**
 	 * Alpha below which blocks are considered transparent for purposes of shading
 	 * (i.e. blocks with alpha < this will not be shaded, but blocks below them will be)
 	 */
 	private int shadeOpacityCutoff = 0x20; 
 	
-	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, boolean debug ) {
+	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, boolean debug, int minHeight, int maxHeight ) {
 		assert blockMap != null;
 		assert biomeMap != null;
 		
@@ -68,6 +71,9 @@ public class RegionRenderer
 		this.biomeMap = biomeMap;
 		this.air16Color = Color.overlay( 0, getColor(0, 0, 0), 16 );
 		this.debug = debug;
+		
+		this.minHeight = minHeight;
+		this.maxHeight = maxHeight;
 	}
 	
 	/**
@@ -256,11 +262,18 @@ public class RegionRenderer
 							int biomeId = biomeIds[z*16+x]&0xFF;
 							
 							for( int s=0; s<maxSectionCount; ++s ) {
+								int absY=s*16;
+								
+								if( absY    >= maxHeight ) continue;
+								if( absY+16 <= minHeight ) continue;
+								
 								if( usedSections[s] ) {
 									short[] blockIds  = sectionBlockIds[s];
 									byte[]  blockData = sectionBlockData[s];
 									
-									for( int idx=z*16+x, y=0, absY=s*16; y<16; ++y, idx+=256, ++absY ) {
+									for( int idx=z*16+x, y=0; y<16; ++y, idx+=256, ++absY ) {
+										if( absY < minHeight || absY >= maxHeight ) continue;
+										
 										final short blockId    =  blockIds[idx];
 										final byte  blockDatum = blockData[idx];
 										int blockColor = getColor( blockId&0xFFFF, blockDatum, biomeId );
@@ -270,7 +283,12 @@ public class RegionRenderer
 										}
 									}
 								} else {
-									pixelColor = Color.overlay( pixelColor, air16Color );
+									if( minHeight <= absY && maxHeight >= absY+16 ) {
+										// Optimize the 16-blocks-of-air case:
+										pixelColor = Color.overlay( pixelColor, air16Color );
+									} else {
+										 // TODO: mix
+									}
 								}
 							}
 							
@@ -430,6 +448,8 @@ public class RegionRenderer
 		"  -create-tile-html  ; generate tiles.html in the output directory\n" +
 		"  -create-image-tree ; generate a PicGrid-compatible image tree\n" +
 		"  -create-big-image  ; merges all rendered images into a single file\n" +
+		"  -min-height <y>    ; only draw blocks above this height\n" +
+		"  -max-height <y>    ; only draw blocks below this height\n" +
 		"  -region-limit-rect <x0> <y0> <x1> <y1> ; limit which regions are rendered\n" +
 		"                     ; to those between the given region coordinates, e.g.\n" +
 		"                     ; 0 0 2 2 to render the 4 regions southeast of the origin.\n" +
@@ -464,6 +484,10 @@ public class RegionRenderer
 					m.forceReRender = true;
 				} else if( "-debug".equals(args[i]) ) {
 					m.debug = true;
+				} else if( "-min-height".equals(args[i]) ) {
+					m.minHeight = Integer.parseInt(args[++i]);
+				} else if( "-max-height".equals(args[i]) ) {
+					m.maxHeight = Integer.parseInt(args[++i]);
 				} else if( "-create-tile-html".equals(args[i]) ) {
 					m.createTileHtml = Boolean.TRUE;
 				} else if( "-create-image-tree".equals(args[i]) ) {
@@ -511,6 +535,8 @@ public class RegionRenderer
 		Boolean createImageTree = null;
 		boolean createBigImage = false;
 		BoundingRect regionLimitRect = BoundingRect.INFINITE;
+		int minHeight = Integer.MIN_VALUE;
+		int maxHeight = Integer.MAX_VALUE;
 		
 		String errorMessage = null;
 		
@@ -544,7 +570,7 @@ public class RegionRenderer
 				BiomeMap.load( biomeMapFile );
 			
 			RegionMap rm = RegionMap.load(regionFiles, regionLimitRect);
-			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, debug);
+			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, debug, minHeight, maxHeight);
 			
 			rr.renderAll(rm, outputDir, forceReRender);
 			if( debug ) {

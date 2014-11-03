@@ -91,4 +91,16 @@ public class RegionRendererMainTest extends TestCase {
 				.fromArguments(toArgs("temp/r.0.0.mca"));
 		assertEquals(false, cmd.shouldCreateTileHtml());
 	}
+	
+	public void testNoMinMaxHeights() throws Exception {
+		extractAndAssertValidArgs("-o out in");
+		assertEquals(Integer.MIN_VALUE, main.minHeight);
+		assertEquals(Integer.MAX_VALUE, main.maxHeight);
+	}
+
+	public void testMinMaxHeights() throws Exception {
+		extractAndAssertValidArgs("-min-height 37 -max-height 64 -o out in");
+		assertEquals(37, main.minHeight);
+		assertEquals(64, main.maxHeight);
+	}
 }
