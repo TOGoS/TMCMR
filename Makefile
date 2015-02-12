@@ -5,7 +5,7 @@ all: TMCMR.jar
 clean:
 	rm -rf bin TMCMR.jar .src.lst
 
-TMCMR.jar:
+TMCMR.jar: $(shell find src)
 	rm -rf bin TMCMR.jar
 	cp -r src bin
 	find src -name *.java >.src.lst
