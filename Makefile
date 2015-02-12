@@ -1,6 +1,6 @@
 .PHONY: all clean
 
-all: TMCMR.jar
+all: TMCMR.jar.urn
 
 clean:
 	rm -rf bin TMCMR.jar .src.lst
@@ -14,3 +14,6 @@ TMCMR.jar: $(shell find src)
 	echo 'Version: 1.0' >bin/META-INF/MANIFEST.MF
 	echo 'Main-Class: togos.minecraft.maprend.RegionRenderer' >>bin/META-INF/MANIFEST.MF
 	cd bin ; zip -9 -r ../TMCMR.jar . ; cd ..
+
+%.urn: % TMCMR.jar
+	java -cp TMCMR.jar togos.minecraft.maprend.io.IDFile "$<" >"$@"
