@@ -55,15 +55,16 @@ public class RegionRenderer
 	public final int minHeight;
 	public final int maxHeight;
 	public final int shadingReferenceAltitude;
-	public final int minShading;
-	public final int maxShading;
+	public final int altitudeShadingFactor;
+	public final int minAltitudeShading;
+	public final int maxAltitudeShading;
 	/**
 	 * Alpha below which blocks are considered transparent for purposes of shading
 	 * (i.e. blocks with alpha < this will not be shaded, but blocks below them will be)
 	 */
 	private int shadeOpacityCutoff = 0x20; 
 	
-	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, boolean debug, int minHeight, int maxHeight, int baseAltitude, int minShading, int maxShading) {
+	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, boolean debug, int minHeight, int maxHeight, int shadingRefAlt, int minAltShading, int maxAltShading, int altShadingFactor) {
 		assert blockMap != null;
 		assert biomeMap != null;
 		
@@ -74,9 +75,10 @@ public class RegionRenderer
 		
 		this.minHeight = minHeight;
 		this.maxHeight = maxHeight;
-		this.shadingReferenceAltitude = baseAltitude;
-		this.minShading = minShading;
-		this.maxShading = maxShading;
+		this.shadingReferenceAltitude = shadingRefAlt;
+		this.minAltitudeShading = minAltShading;
+		this.maxAltitudeShading = maxAltShading;
+		this.altitudeShadingFactor = altShadingFactor;
 	}
 	
 	/**
@@ -211,9 +213,11 @@ public class RegionRenderer
 				if( shade >  10 ) shade =  10;
 				if( shade < -10 ) shade = -10;
 				
-				shade += (height[idx] - shadingReferenceAltitude) / 7.0;
-				if( shade > maxShading ) shade = maxShading;
-				if( shade < minShading ) shade = minShading;
+				int altShade = altitudeShadingFactor * (height[idx] - shadingReferenceAltitude) / 255;
+				if( altShade < minAltitudeShading ) altShade = minAltitudeShading;
+				if( altShade > maxAltitudeShading ) altShade = maxAltitudeShading;
+				
+				shade += altShade;
 				
 				color[idx] = Color.shade( color[idx], (int)(shade*8) );
 			}
@@ -458,9 +462,10 @@ public class RegionRenderer
 		"  -region-limit-rect <x0> <y0> <x1> <y1> ; limit which regions are rendered\n" +
 		"                     ; to those between the given region coordinates, e.g.\n" +
 		"                     ; 0 0 2 2 to render the 4 regions southeast of the origin.\n" +
-		"  -min-shading <x>   ; lowest shading modifier (default -20)\n" +
-		"  -max-shading <x>   ; highest shading modifier (default 20)\n" +
-		"  -shading-reference-altitude <y> ; reference altitude for shading (default 64)\n" +
+		"  -altitude-shading-factor <f>    ; how much altitude affects shading [36]\n" +
+		"  -shading-reference-altitude <y> ; reference altitude for shading [64]\n" +
+		"  -min-altitude-shading <x>       ; lowest altitude shading modifier [-20]\n" +
+		"  -max-altitude-shading <x>       ; highest altitude shading modifier [20]\n" +
 		"\n" +
 		"Input files may be 'region/' directories or individual '.mca' files.\n" +
 		"\n" +
@@ -512,12 +517,14 @@ public class RegionRenderer
 					m.colorMapFile = new File(args[++i]);
 				} else if( "-biome-map".equals(args[i]) ) {
 					m.biomeMapFile = new File(args[++i]);
+				} else if( "-altitude-shading-factor".equals(args[i]) ) {
+					m.altitudeShadingFactor = Integer.parseInt(args[++i]);
 				} else if( "-shading-reference-altitude".equals(args[i]) ) {
 					m.shadingReferenceAltitude = Integer.parseInt(args[++i]);
-				} else if( "-min-shading".equals(args[i]) ) {
-					m.minShadingAmount = Integer.parseInt(args[++i]);
-				} else if( "-max-shading".equals(args[i]) ) {
-					m.maxShadingAmount = Integer.parseInt(args[++i]);
+				} else if( "-min-altitude-shading".equals(args[i]) ) {
+					m.minAltitudeShading = Integer.parseInt(args[++i]);
+				} else if( "-max-altitude-shading".equals(args[i]) ) {
+					m.maxAltitudeShading = Integer.parseInt(args[++i]);
 				} else if( "-h".equals(args[i]) || "-?".equals(args[i]) || "--help".equals(args[i]) || "-help".equals(args[i]) ) {
 					m.printHelpAndExit = true;
 				} else {
@@ -552,8 +559,9 @@ public class RegionRenderer
 		int minHeight = Integer.MIN_VALUE;
 		int maxHeight = Integer.MAX_VALUE;
 		int shadingReferenceAltitude = 64;
-		int minShadingAmount = -20;
-		int maxShadingAmount = +20; 
+		int minAltitudeShading = -20;
+		int maxAltitudeShading = +20;
+		int altitudeShadingFactor = 36;
 		
 		String errorMessage = null;
 		
@@ -587,7 +595,10 @@ public class RegionRenderer
 				BiomeMap.load( biomeMapFile );
 			
 			RegionMap rm = RegionMap.load(regionFiles, regionLimitRect);
-			RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, debug, minHeight, maxHeight, shadingReferenceAltitude, minShadingAmount, maxShadingAmount);
+			RegionRenderer rr = new RegionRenderer(
+				colorMap, biomeMap, debug, minHeight, maxHeight,
+				shadingReferenceAltitude, minAltitudeShading, maxAltitudeShading, altitudeShadingFactor
+			);
 			
 			rr.renderAll(rm, outputDir, forceReRender);
 			if( debug ) {
