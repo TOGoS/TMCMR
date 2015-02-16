@@ -385,7 +385,7 @@ public class RegionRenderer
 			File fullSizeImageFile = r.imageFile = new File( outputDir, imageFilename );
 			
 			boolean fullSizeNeedsReRender = false;
-			if( force || !fullSizeImageFile.exists() || r.regionFile.lastModified() < fullSizeImageFile.lastModified() ) {
+			if( force || !fullSizeImageFile.exists() || fullSizeImageFile.lastModified() < r.regionFile.lastModified() ) {
 				fullSizeNeedsReRender = true;
 			} else {
 				if( debug ) System.err.println("image already up-to-date");
@@ -393,6 +393,7 @@ public class RegionRenderer
 			
 			boolean anyScalesNeedReRender = false;
 			for( int scale : mapScales ) {
+				if( scale == 1 ) continue;
 				File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
 				if( force || !f.exists() || f.lastModified() < r.regionFile.lastModified() ) {
 					anyScalesNeedReRender = true;
@@ -428,13 +429,14 @@ public class RegionRenderer
 			
 			for( int scale : mapScales ) {
 				if( scale == 1 ) continue; // Already wrote!
+				File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
+				if( debug ) System.err.println("generating "+f+"...");
 				int size = 512 / scale;
 				BufferedImage rescaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
 				Graphics2D g = rescaled.createGraphics();
 				g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 				g.drawImage(fullSize, 0, 0, size, size, 0, 0, 512, 512, null);
 				g.dispose();
-				File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
 				ImageIO.write(rescaled, "png", f);
 			}
 		}
