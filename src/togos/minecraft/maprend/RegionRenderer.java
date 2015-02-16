@@ -1,5 +1,7 @@
 package togos.minecraft.maprend;
 
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.DataInputStream;
 import java.io.File;
@@ -354,7 +356,10 @@ public class RegionRenderer
 	protected static String pad( int v, int targetLength ) {
 		return pad( ""+v, targetLength );
 	}
-		
+	
+	final String mapTitle = "Regions"; // TODO: make configurable!
+	final int[] renderScales = {1,4,16};
+	
 	public void renderAll( RegionMap rm, File outputDir, boolean force ) throws IOException {
 		long startTime = System.currentTimeMillis();
 		
@@ -370,34 +375,63 @@ public class RegionRenderer
 			if( debug ) System.err.print("Region "+pad(r.rx, 4)+", "+pad(r.rz, 4)+"...");
 			
 			String imageFilename = "tile."+r.rx+"."+r.rz+".png";
-			File imageFile = r.imageFile = new File( outputDir+"/"+imageFilename );
+			File fullSizeImageFile = r.imageFile = new File( outputDir, imageFilename );
 			
-			if( imageFile.exists() ) {
-				if( !force && imageFile.lastModified() > r.regionFile.lastModified() ) {
+			boolean fullSizeNeedsReRender = false;
+			if( fullSizeImageFile.exists() ) {
+				if( force || !fullSizeImageFile.exists() || r.regionFile.lastModified() < fullSizeImageFile.lastModified() ) {
+					fullSizeNeedsReRender = true;
+				} else {
 					if( debug ) System.err.println("image already up-to-date");
-					continue;
 				}
-				imageFile.delete();
-			}
-			if( debug ) System.err.println("generating "+imageFilename+"...");
-			
-			RegionFile rf = new RegionFile( r.regionFile );
-			BufferedImage bi;
-			try {
-			   bi = render( rf );
-			} finally {
-			   rf.close();
 			}
 			
-			try {
-				resetInterval();
-				ImageIO.write(bi, "png", imageFile);
-				timer.imageSaving += getInterval();
-			} catch( IOException e ) {
-				System.err.println("Error writing PNG to "+imageFile);
-				e.printStackTrace();
+			boolean anyScalesNeedReRender = false;
+			for( int scale : renderScales ) {
+				File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
+				if( force || !f.exists() || f.lastModified() < r.regionFile.lastModified() ) {
+					anyScalesNeedReRender = true;
+				}
 			}
-			++timer.regionCount;
+			
+			BufferedImage fullSize;
+			if( fullSizeNeedsReRender ) {
+				fullSizeImageFile.delete();
+				if( debug ) System.err.println("generating "+imageFilename+"...");
+				
+				RegionFile rf = new RegionFile( r.regionFile );
+				try {
+					fullSize = render( rf );
+				} finally {
+					rf.close();
+				}
+				
+				try {
+					resetInterval();
+					ImageIO.write(fullSize, "png", fullSizeImageFile);
+					timer.imageSaving += getInterval();
+				} catch( IOException e ) {
+					System.err.println("Error writing PNG to "+fullSizeImageFile);
+					e.printStackTrace();
+				}
+				++timer.regionCount;
+			} else if( anyScalesNeedReRender ) {
+				fullSize = ImageIO.read(fullSizeImageFile);
+			} else {
+				return;
+			}
+			
+			for( int scale : renderScales ) {
+				if( scale == 1 ) continue; // Already wrote!
+				int size = 512 / scale;
+				BufferedImage rescaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+				Graphics2D g = rescaled.createGraphics();
+				g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+				g.drawImage(fullSize, 0, 0, size, size, 0, 0, 512, 512, null);
+				g.dispose();
+				File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
+				ImageIO.write(rescaled, "png", f);
+			}
 		}
 		timer.total += System.currentTimeMillis() - startTime;
 	}
@@ -409,60 +443,88 @@ public class RegionRenderer
 	 */
 	public void createTileHtml( int minX, int minZ, int maxX, int maxZ, File outputDir ) {
 		if( debug ) System.err.println("Writing HTML tiles...");
-		try {
-			File cssFile = new File(outputDir, "tiles.css");
-			if( !cssFile.exists() ) {
-				InputStream cssInputStream = getClass().getResourceAsStream("tiles.css");
-				byte[] buffer = new byte[1024*1024];
-				try {
-					FileOutputStream cssOutputStream = new FileOutputStream(cssFile);
+		for( int scale : renderScales ) {
+			int regionSize = 512 / scale;
+			
+			try {
+				File cssFile = new File(outputDir, "tiles.css");
+				if( !cssFile.exists() ) {
+					InputStream cssInputStream = getClass().getResourceAsStream("tiles.css");
+					byte[] buffer = new byte[1024*1024];
 					try {
-						int r;
-						while( (r = cssInputStream.read(buffer)) > 0 ) {
-							cssOutputStream.write(buffer, 0, r);
+						FileOutputStream cssOutputStream = new FileOutputStream(cssFile);
+						try {
+							int r;
+							while( (r = cssInputStream.read(buffer)) > 0 ) {
+								cssOutputStream.write(buffer, 0, r);
+							}
+						} finally {
+							cssOutputStream.close();
 						}
 					} finally {
-						cssOutputStream.close();
+						cssInputStream.close();
 					}
-				} finally {
-					cssInputStream.close();
 				}
-			}
-			
-			Writer w = new OutputStreamWriter(new FileOutputStream(new File(outputDir+"/tiles.html")));
-			try {
-				w.write("<html><head><link rel=\"stylesheet\" type=\"text/css\" href=\"tiles.css\"/><body>\n");
-				w.write("<div style=\"height: "+(maxZ-minZ+1)*512+"px\">");
 				
-				for( int z=minZ; z<=maxZ; ++z ) {
-					for( int x=minX; x<=maxX; ++x ) {
-						String imageFilename = "tile."+x+"."+z+".png";
-						File imageFile = new File( outputDir+"/"+imageFilename );
-						if( imageFile.exists() ) {
-							int top = (z-minZ) * 512, left = (x-minX) * 512;
-							String title = "Region "+x+", "+z;
-							String style =
-								"width:512px; height:512px; position:absolute; top:"+top+"; left:"+left+"; "+
-								"background-image: url("+imageFilename+")";
-							w.write("<a "+
-								"class=\"tile\" "+
-								"style=\""+style+"\" "+
-								"title=\""+title+"\" "+
-								"href=\""+imageFilename+"\">&nbsp;</a>");
+				Writer w = new OutputStreamWriter(new FileOutputStream(new File(
+					outputDir,
+					scale == 1 ? "tiles.html" : "tiles.1-"+scale+".html"
+				)));
+				try {
+					w.write("<html><head>\n");
+					w.write("<title>"+mapTitle+" - 1:"+scale+"</title>\n");
+					w.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"tiles.css\"/><body>\n");
+					w.write("<div style=\"height: "+(maxZ-minZ+1)*regionSize+"px\">");
+					
+					for( int z=minZ; z<=maxZ; ++z ) {
+						for( int x=minX; x<=maxX; ++x ) {
+							String fullSizeImageFilename = "tile."+x+"."+z+".png";
+							File imageFile = new File( outputDir+"/"+fullSizeImageFilename );
+							String scaledImageFilename = scale == 1 ?
+								fullSizeImageFilename :
+								"tile."+x+"."+z+".1-"+scale+".png";
+							if( imageFile.exists() ) {
+								int top = (z-minZ) * regionSize, left = (x-minX) * regionSize;
+								String title = "Region "+x+", "+z;
+								String style =
+									"width: "+regionSize+"px; height: "+regionSize+"px; "+
+									"position: absolute; top: "+top+"; left: "+left+"; "+
+									"background-image: url("+scaledImageFilename+")";
+								w.write("<a "+
+									"class=\"tile\" "+
+									"style=\""+style+"\" "+
+									"title=\""+title+"\" "+
+									"href=\""+fullSizeImageFilename+"\">&nbsp;</a>");
+							}
 						}
 					}
+					
+					w.write("</div>\n");
+					if( renderScales.length > 1 ) {
+						w.write("<div class=\"scales-nav\">");
+						w.write("<p>Scales:</p>");
+						w.write("<ul>");
+						for( int otherScale : renderScales ) {
+							if( otherScale == scale ) {
+								w.write("<li>1:"+scale+"</li>");
+							} else {
+								String otherFilename = otherScale == 1 ? "tiles.html" : "tiles.1-"+otherScale+".html";
+								w.write("<li><a href=\""+otherFilename+"\">1:"+otherScale+"</a></li>");
+							}
+						}
+						w.write("</ul>");
+						w.write("</div>");
+					}
+					w.write("<p class=\"notes\">");
+					w.write("Page rendered at "+ new Date().toString());
+					w.write("</p>\n");
+					w.write("</body></html>");
+				} finally {
+					w.close();
 				}
-				
-				w.write("</div>\n");
-				w.write("<p class=\"notes\">");
-				w.write("Page rendered at "+ new Date().toString());
-				w.write("</p>\n");
-				w.write("</body></html>");
-			} finally {
-				w.close();
+			} catch( IOException e ) {
+				throw new RuntimeException(e);
 			}
-		} catch( IOException e ) {
-			throw new RuntimeException(e);
 		}
 	}
 	
