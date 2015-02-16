@@ -495,11 +495,12 @@ public class RegionRenderer
 									"width: "+regionSize+"px; height: "+regionSize+"px; "+
 									"position: absolute; top: "+top+"; left: "+left+"; "+
 									"background-image: url("+scaledImageFilename+")";
-								w.write("<a "+
-									"class=\"tile\" "+
-									"style=\""+style+"\" "+
-									"title=\""+title+"\" "+
-									"href=\""+fullSizeImageFilename+"\">&nbsp;</a>");
+								w.write("<a\n"+
+									"\tclass=\"tile\"\n"+
+									"\tstyle=\""+style+"\"\n"+
+									"\ttitle=\""+title+"\"\n"+
+									"\thref=\""+fullSizeImageFilename+"\"\n"+
+									">&nbsp;</a>");
 							}
 						}
 					}
