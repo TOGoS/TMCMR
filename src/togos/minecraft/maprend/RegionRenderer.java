@@ -385,12 +385,10 @@ public class RegionRenderer
 			File fullSizeImageFile = r.imageFile = new File( outputDir, imageFilename );
 			
 			boolean fullSizeNeedsReRender = false;
-			if( fullSizeImageFile.exists() ) {
-				if( force || !fullSizeImageFile.exists() || r.regionFile.lastModified() < fullSizeImageFile.lastModified() ) {
-					fullSizeNeedsReRender = true;
-				} else {
-					if( debug ) System.err.println("image already up-to-date");
-				}
+			if( force || !fullSizeImageFile.exists() || r.regionFile.lastModified() < fullSizeImageFile.lastModified() ) {
+				fullSizeNeedsReRender = true;
+			} else {
+				if( debug ) System.err.println("image already up-to-date");
 			}
 			
 			boolean anyScalesNeedReRender = false;
