@@ -5,6 +5,7 @@ import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
@@ -409,27 +410,57 @@ public class RegionRenderer
 	public void createTileHtml( int minX, int minZ, int maxX, int maxZ, File outputDir ) {
 		if( debug ) System.err.println("Writing HTML tiles...");
 		try {
-			Writer w = new OutputStreamWriter(new FileOutputStream(new File(outputDir+"/tiles.html")));
-			w.write("<html><body style=\"background:black\"><table border=\"0\" cellspacing=\"0\" cellpadding=\"0\">\n");
-			
-			for( int z=minZ; z<=maxZ; ++z ) {
-				w.write("<tr>");
-				for( int x=minX; x<=maxX; ++x ) {
-					w.write("<td>");
-					String imageFilename = "tile."+x+"."+z+".png";
-					File imageFile = new File( outputDir+"/"+imageFilename );
-					if( imageFile.exists() ) {
-						w.write("<img src=\""+imageFilename+"\"/>");
+			File cssFile = new File(outputDir, "tiles.css");
+			if( !cssFile.exists() ) {
+				InputStream cssInputStream = getClass().getResourceAsStream("tiles.css");
+				byte[] buffer = new byte[1024*1024];
+				try {
+					FileOutputStream cssOutputStream = new FileOutputStream(cssFile);
+					try {
+						int r;
+						while( (r = cssInputStream.read(buffer)) > 0 ) {
+							cssOutputStream.write(buffer, 0, r);
+						}
+					} finally {
+						cssOutputStream.close();
 					}
-					w.write("</td>");
+				} finally {
+					cssInputStream.close();
 				}
-				w.write("</tr>\n");
 			}
 			
-			w.write("</table>\n<span style=\"color: cornflowerblue;font-size: smaller;font-family: monospace;display: inline-block;\">");
-			w.write("Page rendered at "+ new Date().toString());
-			w.write("</span>\n</body></html>");
-			w.close();
+			Writer w = new OutputStreamWriter(new FileOutputStream(new File(outputDir+"/tiles.html")));
+			try {
+				w.write("<html><head><link rel=\"stylesheet\" type=\"text/css\" href=\"tiles.css\"/><body>\n");
+				w.write("<div style=\"height: "+(maxZ-minZ+1)*512+"px\">");
+				
+				for( int z=minZ; z<=maxZ; ++z ) {
+					for( int x=minX; x<=maxX; ++x ) {
+						String imageFilename = "tile."+x+"."+z+".png";
+						File imageFile = new File( outputDir+"/"+imageFilename );
+						if( imageFile.exists() ) {
+							int top = (z-minZ) * 512, left = (x-minX) * 512;
+							String title = "Region "+x+", "+z;
+							String style =
+								"width:512px; height:512px; position:absolute; top:"+top+"; left:"+left+"; "+
+								"background-image: url("+imageFilename+")";
+							w.write("<a "+
+								"class=\"tile\" "+
+								"style=\""+style+"\" "+
+								"title=\""+title+"\" "+
+								"href=\""+imageFilename+"\">&nbsp;</a>");
+						}
+					}
+				}
+				
+				w.write("</div>\n");
+				w.write("<p class=\"notes\">");
+				w.write("Page rendered at "+ new Date().toString());
+				w.write("</p>\n");
+				w.write("</body></html>");
+			} finally {
+				w.close();
+			}
 		} catch( IOException e ) {
 			throw new RuntimeException(e);
 		}
