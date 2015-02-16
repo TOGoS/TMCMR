@@ -61,13 +61,20 @@ public class RegionRenderer
 	public final int altitudeShadingFactor;
 	public final int minAltitudeShading;
 	public final int maxAltitudeShading;
+	public final String mapTitle;
+	public final int[] mapScales;
+	
 	/**
 	 * Alpha below which blocks are considered transparent for purposes of shading
 	 * (i.e. blocks with alpha < this will not be shaded, but blocks below them will be)
 	 */
 	private int shadeOpacityCutoff = 0x20; 
 	
-	public RegionRenderer( BlockMap blockMap, BiomeMap biomeMap, boolean debug, int minHeight, int maxHeight, int shadingRefAlt, int minAltShading, int maxAltShading, int altShadingFactor) {
+	public RegionRenderer(
+		BlockMap blockMap, BiomeMap biomeMap, boolean debug, int minHeight, int maxHeight,
+		int shadingRefAlt, int minAltShading, int maxAltShading, int altShadingFactor,
+		String mapTitle, int[] mapScales
+	) {
 		assert blockMap != null;
 		assert biomeMap != null;
 		
@@ -82,6 +89,9 @@ public class RegionRenderer
 		this.minAltitudeShading = minAltShading;
 		this.maxAltitudeShading = maxAltShading;
 		this.altitudeShadingFactor = altShadingFactor;
+		
+		this.mapTitle = mapTitle;
+		this.mapScales = mapScales;
 	}
 	
 	/**
@@ -357,9 +367,6 @@ public class RegionRenderer
 		return pad( ""+v, targetLength );
 	}
 	
-	final String mapTitle = "Regions"; // TODO: make configurable!
-	final int[] renderScales = {1,4,16};
-	
 	public void renderAll( RegionMap rm, File outputDir, boolean force ) throws IOException {
 		long startTime = System.currentTimeMillis();
 		
@@ -387,7 +394,7 @@ public class RegionRenderer
 			}
 			
 			boolean anyScalesNeedReRender = false;
-			for( int scale : renderScales ) {
+			for( int scale : mapScales ) {
 				File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
 				if( force || !f.exists() || f.lastModified() < r.regionFile.lastModified() ) {
 					anyScalesNeedReRender = true;
@@ -421,7 +428,7 @@ public class RegionRenderer
 				return;
 			}
 			
-			for( int scale : renderScales ) {
+			for( int scale : mapScales ) {
 				if( scale == 1 ) continue; // Already wrote!
 				int size = 512 / scale;
 				BufferedImage rescaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
@@ -443,7 +450,7 @@ public class RegionRenderer
 	 */
 	public void createTileHtml( int minX, int minZ, int maxX, int maxZ, File outputDir ) {
 		if( debug ) System.err.println("Writing HTML tiles...");
-		for( int scale : renderScales ) {
+		for( int scale : mapScales ) {
 			int regionSize = 512 / scale;
 			
 			try {
@@ -500,11 +507,11 @@ public class RegionRenderer
 					}
 					
 					w.write("</div>\n");
-					if( renderScales.length > 1 ) {
+					if( mapScales.length > 1 ) {
 						w.write("<div class=\"scales-nav\">");
 						w.write("<p>Scales:</p>");
 						w.write("<ul>");
-						for( int otherScale : renderScales ) {
+						for( int otherScale : mapScales ) {
 							if( otherScale == scale ) {
 								w.write("<li>1:"+scale+"</li>");
 							} else {
@@ -559,6 +566,8 @@ public class RegionRenderer
 		"  -shading-reference-altitude <y> ; reference altitude for shading [64]\n" +
 		"  -min-altitude-shading <x>       ; lowest altitude shading modifier [-20]\n" +
 		"  -max-altitude-shading <x>       ; highest altitude shading modifier [20]\n" +
+		"  -title <title>     ; title to include with maps\n" +
+		"  -scales 1:<n>,...  ; list scales at which to render\n" +
 		"\n" +
 		"Input files may be 'region/' directories or individual '.mca' files.\n" +
 		"\n" +
@@ -620,6 +629,21 @@ public class RegionRenderer
 					m.maxAltitudeShading = Integer.parseInt(args[++i]);
 				} else if( "-h".equals(args[i]) || "-?".equals(args[i]) || "--help".equals(args[i]) || "-help".equals(args[i]) ) {
 					m.printHelpAndExit = true;
+				} else if( "-title".equals(args[i]) ) {
+					m.mapTitle = args[++i];
+				} else if( "-scales".equals(args[i]) ) {
+					String[] scales = args[++i].split(",");
+					int[] invScales = new int[scales.length];
+					for( int j=0; j<scales.length; ++j ) {
+						if( scales[j].equals("1") ) invScales[j] = 1;
+						else if( scales[j].startsWith("1:") ) {
+							invScales[j] = Integer.parseInt(scales[j].substring(2));
+						} else {
+							m.errorMessage = "Invalid scale: '"+scales[j]+"'; must be of the form '1:n'";
+							return m;
+						}
+					}
+					m.mapScales = invScales;
 				} else {
 					m.errorMessage = "Unrecognised argument: " + args[i];
 					return m;
@@ -655,6 +679,8 @@ public class RegionRenderer
 		int minAltitudeShading = -20;
 		int maxAltitudeShading = +20;
 		int altitudeShadingFactor = 36;
+		int[] mapScales = {1};
+		String mapTitle = "Regions";
 		
 		String errorMessage = null;
 		
@@ -690,7 +716,8 @@ public class RegionRenderer
 			RegionMap rm = RegionMap.load(regionFiles, regionLimitRect);
 			RegionRenderer rr = new RegionRenderer(
 				colorMap, biomeMap, debug, minHeight, maxHeight,
-				shadingReferenceAltitude, minAltitudeShading, maxAltitudeShading, altitudeShadingFactor
+				shadingReferenceAltitude, minAltitudeShading, maxAltitudeShading, altitudeShadingFactor,
+				mapTitle, mapScales
 			);
 			
 			rr.renderAll(rm, outputDir, forceReRender);
