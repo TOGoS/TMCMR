@@ -424,7 +424,7 @@ public class RegionRenderer
 			} else if( anyScalesNeedReRender ) {
 				fullSize = ImageIO.read(fullSizeImageFile);
 			} else {
-				return;
+				continue;
 			}
 			
 			for( int scale : mapScales ) {
