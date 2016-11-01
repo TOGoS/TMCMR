@@ -18,46 +18,72 @@ class RegionRendererCommand {
   BoundingRect regionLimitRect = BoundingRect.INFINITE;
   public boolean overlayGrid = false;
   public boolean showDiamonds = false;
+
+  private int argIndex;
+  private String[] args;
+  String errorMessage = null;
+
+  public RegionRendererCommand(String[] args) {
+    this.args = args;
+  }
+
   public static RegionRendererCommand fromArguments(String... args) {
-    RegionRendererCommand m = new RegionRendererCommand();
-    for (int i = 0; i < args.length; ++i) {
-      if (args[i].charAt(0) != '-') {
-        m.regionFiles.add(new File(args[i]));
-      } else if ("-o".equals(args[i])) {
-        m.outputDir = new File(args[++i]);
-      } else if ("-f".equals(args[i])) {
-        m.forceReRender = true;
-      } else if ("-debug".equals(args[i])) {
-        m.debug = true;
-      } else if ("-grid".equals(args[i])) {
-        m.overlayGrid = true;
-      } else if ("-D".equals(args[i])) {
-        m.showDiamonds = true;
-      } else if ("-create-tile-html".equals(args[i])) {
-        m.createTileHtml = Boolean.TRUE;
-      } else if ("-create-image-tree".equals(args[i])) {
-        m.createImageTree = Boolean.TRUE;
-      } else if ("-region-limit-rect".equals(args[i])) {
-        int minX = Integer.parseInt(args[++i]);
-        int minY = Integer.parseInt(args[++i]);
-        int maxX = Integer.parseInt(args[++i]);
-        int maxY = Integer.parseInt(args[++i]);
-        m.regionLimitRect = new BoundingRect(minX, minY, maxX, maxY);
-      } else if ("-create-big-image".equals(args[i])) {
-        m.createBigImage = true;
-      } else if ("-color-map".equals(args[i])) {
-        m.colorMapFile = new File(args[++i]);
-      } else if ("-biome-map".equals(args[i])) {
-        m.biomeMapFile = new File(args[++i]);
-      } else if ("-h".equals(args[i]) || "-?".equals(args[i]) || "--help".equals(args[i]) || "-help".equals(args[i])) {
-        m.printHelpAndExit = true;
-      } else {
-        m.errorMessage = "Unrecognised argument: " + args[i];
-        return m;
-      }
-    }
-    m.errorMessage = validateSettings(m);
+    RegionRendererCommand m = new RegionRendererCommand(args);
+    if (m.parseArguments())
+      m.errorMessage = validateSettings(m);
+
     return m;
+  }
+
+  private boolean parseArguments() {
+    for (argIndex = 0; argIndex < args.length; ++argIndex) {
+      if (args[argIndex].charAt(0) == '-') {
+        if (!parseArg()) {
+          errorMessage = "Unrecognised argument: " + args[argIndex];
+          return false;
+        }
+      } else
+        regionFiles.add(new File(args[argIndex]));
+    }
+    return true;
+  }
+
+  private boolean parseArg() {
+    return doArg("-o", () -> outputDir = new File(args[++argIndex]))
+      || doArg("-f", () -> forceReRender = true)
+      || doArg("-debug", () -> debug = true)
+      || doArg("-grid", () -> overlayGrid = true)
+      || doArg("-D", () -> showDiamonds = true)
+      || doArg("-create-tile-html", () -> createTileHtml = true)
+      || doArg("-create-image-tree", () -> createImageTree = true)
+      || doArg("-create-big-image", () -> createBigImage = true)
+      || doArg("-color-map", () -> colorMapFile = new File(args[++argIndex]))
+      || doArg("-biome-map", () -> biomeMapFile = new File(args[++argIndex]))
+      || doArg("-h", () -> printHelpAndExit = true)
+      || doArg("-?", () -> printHelpAndExit = true)
+      || doArg("--help", () -> printHelpAndExit = true)
+      || doArg("-help", () -> printHelpAndExit = true)
+      || doArg("-region-limit-rect", () -> setRegionLimitRect());
+  }
+
+  private void setRegionLimitRect() {
+    int minX = Integer.parseInt(args[++argIndex]);
+    int minY = Integer.parseInt(args[++argIndex]);
+    int maxX = Integer.parseInt(args[++argIndex]);
+    int maxY = Integer.parseInt(args[++argIndex]);
+    regionLimitRect = new BoundingRect(minX, minY, maxX, maxY);
+  }
+
+  private boolean doArg(String arg, Runnable r) {
+    if (argIs(arg)) {
+      r.run();
+      return true;
+    }
+    return false;
+  }
+
+  private boolean argIs(String arg) {
+    return arg.equals(args[argIndex]);
   }
 
   private static String validateSettings(RegionRendererCommand m) {
@@ -68,8 +94,6 @@ class RegionRendererCommand {
     else
       return null;
   }
-
-  String errorMessage = null;
 
   static boolean getDefault(Boolean b, boolean defaultValue) {
     return b != null ? b.booleanValue() : defaultValue;
