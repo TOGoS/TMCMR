@@ -242,6 +242,7 @@ public class RegionRenderer
 						for( int x=0; x<16; ++x ) {
 							int pixelColor = 0;
 							short pixelHeight = 0;
+							boolean diamond = false;
 							int biomeId = biomeIds[z*16+x]&0xFF;
 							
 							for( int s=0; s<maxSectionCount; ++s ) {
@@ -252,6 +253,8 @@ public class RegionRenderer
 									for( int idx=z*16+x, y=0, absY=s*16; y<16; ++y, idx+=256, ++absY ) {
 										final short blockId    =  blockIds[idx];
 										final byte  blockDatum = blockData[idx];
+										if (rendererCommand.showDiamonds && blockId == 56) // diamond
+											diamond = true;
 										int blockColor = getColor( blockId&0xFFFF, blockDatum, biomeId );
 										pixelColor = Color.overlay( pixelColor, blockColor );
 										if( Color.alpha(blockColor) >= shadeOpacityCutoff  ) {
@@ -264,7 +267,7 @@ public class RegionRenderer
 							}
 							
 							final int dIdx = 512*(cz*16+z)+16*cx+x; 
-							colors[dIdx] = pixelColor;
+							colors[dIdx] = diamond ? 0xFF00FFFF : pixelColor;
 							heights[dIdx] = pixelHeight;
 						}
 					}

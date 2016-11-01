@@ -17,6 +17,7 @@ class RegionRendererCommand {
   boolean createBigImage = false;
   BoundingRect regionLimitRect = BoundingRect.INFINITE;
   public boolean overlayGrid = false;
+  public boolean showDiamonds = false;
   public static RegionRendererCommand fromArguments(String... args) {
     RegionRendererCommand m = new RegionRendererCommand();
     for (int i = 0; i < args.length; ++i) {
@@ -30,6 +31,8 @@ class RegionRendererCommand {
         m.debug = true;
       } else if ("-grid".equals(args[i])) {
         m.overlayGrid = true;
+      } else if ("-D".equals(args[i])) {
+        m.showDiamonds = true;
       } else if ("-create-tile-html".equals(args[i])) {
         m.createTileHtml = Boolean.TRUE;
       } else if ("-create-image-tree".equals(args[i])) {
@@ -167,7 +170,9 @@ class RegionRendererCommand {
     "Usage: TMCMR [options] -o <output-dir> <input-files>\n" +
       "  -h, -? ; print usage instructions and exit\n" +
       "  -f     ; force re-render even when images are newer than regions\n" +
+      "  -grid  ; Overlay a 100x100 grid on the map.\n" +
       "  -debug ; be chatty\n" +
+      "  -D     ; show diamonds\n" +
       "  -color-map <file>  ; load a custom color map from the specified file\n" +
       "  -biome-map <file>  ; load a custom biome color map from the specified file\n" +
       "  -create-tile-html  ; generate tiles.html in the output directory\n" +
