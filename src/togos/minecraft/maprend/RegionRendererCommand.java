@@ -2,7 +2,7 @@ package togos.minecraft.maprend;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.*;
 
 class RegionRendererCommand {
   File outputDir = null;
@@ -22,6 +22,7 @@ class RegionRendererCommand {
   private int argIndex;
   private String[] args;
   String errorMessage = null;
+  private boolean argsOk;
 
   public RegionRendererCommand(String[] args) {
     this.args = args;
@@ -108,86 +109,126 @@ class RegionRendererCommand {
   }
 
   public int run() throws IOException {
+    int status = 0;
     if (errorMessage != null) {
-      System.err.println("Error: " + errorMessage);
-      System.err.println(USAGE);
-      return 1;
-    }
-    if (printHelpAndExit) {
+      System.err.println("Error: " + errorMessage + "\n" + USAGE);
+      status = 1;
+    } else if (printHelpAndExit)
       System.out.println(USAGE);
-      return 0;
-    }
+    else
+      renderRegions();
+    return status;
+  }
 
-    final BlockMap colorMap = colorMapFile == null ? BlockMap.loadDefault() :
-      BlockMap.load(colorMapFile);
-
-    final BiomeMap biomeMap = biomeMapFile == null ? BiomeMap.loadDefault() :
-      BiomeMap.load(biomeMapFile);
-
-    RegionMap rm = RegionMap.load(regionFiles, regionLimitRect);
+  private void renderRegions() throws IOException {
+    BlockMap colorMap = makeColorMap();
+    BiomeMap biomeMap = makeBiomeMap();
+    RegionMap rm = makeRegionMap();
     RegionRenderer rr = new RegionRenderer(colorMap, biomeMap, this);
+    rr.renderAll(rm);
+    generateSummaries(rm, rr);
+  }
 
-    rr.renderAll(rm, outputDir, forceReRender);
+  private BlockMap makeColorMap() throws IOException {
+    return colorMapFile == null ? BlockMap.loadDefault() :
+      BlockMap.load(colorMapFile);
+  }
+
+  private BiomeMap makeBiomeMap() throws IOException {
+    return biomeMapFile == null ? BiomeMap.loadDefault() :
+      BiomeMap.load(biomeMapFile);
+  }
+
+  private RegionMap makeRegionMap() {
+    return RegionMap.load(regionFiles, regionLimitRect);
+  }
+
+  private void generateSummaries(RegionMap rm, RegionRenderer rr) {
+    printDebugMessages(rr);
+    if (shouldCreateTileHtml())
+      rr.createTileHtml(rm.minX, rm.minZ, rm.maxX, rm.maxZ, outputDir);
+    if (shouldCreateImageTree())
+      rr.createImageTree(rm);
+    if (createBigImage)
+      rr.createBigImage(rm, outputDir);
+  }
+
+  private void printDebugMessages(RegionRenderer rr) {
     if (debug) {
-      final RegionRenderer.Timer tim = rr.timer;
-      System.err.println("Rendered " + tim.regionCount + " regions, " + tim.sectionCount + " sections in " + (tim.total) + "ms");
-      System.err.println("The following times lines indicate milliseconds total, per region, and per section");
-      System.err.println(tim.formatTime("Loading", tim.regionLoading));
-      System.err.println(tim.formatTime("Pre-rendering", tim.preRendering));
-      System.err.println(tim.formatTime("Post-processing", tim.postProcessing));
-      System.err.println(tim.formatTime("Image saving", tim.imageSaving));
-      System.err.println(tim.formatTime("Total", tim.total));
-      System.err.println();
-
-      if (rr.defaultedBlockIds.size() > 0) {
-        System.err.println("The following block IDs were not explicitly mapped to colors:");
-        int z = 0;
-        for (int blockId : rr.defaultedBlockIds) {
-          System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
-          System.err.print(IDUtil.blockIdString(blockId));
-          ++z;
-        }
-        System.err.println();
-      } else {
-        System.err.println("All block IDs encountered were accounted for in the block color map.");
-      }
-      System.err.println();
-
-      if (rr.defaultedBlockIdDataValues.size() > 0) {
-        System.err.println("The following block ID + data value pairs were not explicitly mapped to colors");
-        System.err.println("(this is not necessarily a problem, as the base IDs were mapped to a color):");
-        int z = 0;
-        for (int blockId : rr.defaultedBlockIdDataValues) {
-          System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
-          System.err.print(IDUtil.blockIdString(blockId));
-          ++z;
-        }
-        System.err.println();
-      } else {
-        System.err.println("All block ID + data value pairs encountered were accounted for in the block color map.");
-      }
-      System.err.println();
-
-      if (rr.defaultedBiomeIds.size() > 0) {
-        System.err.println("The following biome IDs were not explicitly mapped to colors:");
-        int z = 0;
-        for (int biomeId : rr.defaultedBiomeIds) {
-          System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
-          System.err.print(String.format("0x%02X", biomeId));
-          ++z;
-        }
-        System.err.println();
-      } else {
-        System.err.println("All biome IDs encountered were accounted for in the biome color map.");
-      }
+      printTimings(rr);
+      printUnmappedBlockIds(rr);
+      printUnmappedBiomes(rr);
       System.err.println();
     }
+  }
 
-    if (shouldCreateTileHtml()) rr.createTileHtml(rm.minX, rm.minZ, rm.maxX, rm.maxZ, outputDir);
-    if (shouldCreateImageTree()) rr.createImageTree(rm);
-    if (createBigImage) rr.createBigImage(rm, outputDir);
+  private void printUnmappedBlockIds(RegionRenderer rr) {
+    printUnmappedBlocks(rr);
+    printUnmappedBlockDataPairs(rr);
+  }
 
-    return 0;
+  private void printUnmappedBlocks(RegionRenderer rr) {
+    List<Integer> defaultedBlockIds = new ArrayList<>(rr.defaultedBlockIds);
+    Collections.sort(defaultedBlockIds);
+    if (defaultedBlockIds.size() > 0) {
+      System.err.println("The following block IDs were not explicitly mapped to colors:");
+      int z = 0;
+      for (int blockId : defaultedBlockIds) {
+        System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
+        System.err.print(IDUtil.blockIdString(blockId));
+        ++z;
+      }
+      System.err.println();
+    } else {
+      System.err.println("All block IDs encountered were accounted for in the block color map.");
+    }
+    System.err.println();
+  }
+
+  private void printUnmappedBlockDataPairs(RegionRenderer rr) {
+    List<Integer> defaultedBlockIdDataValues = new ArrayList<>(rr.defaultedBlockIdDataValues);
+    Collections.sort(defaultedBlockIdDataValues, new BlockIdComparator());
+    if (defaultedBlockIdDataValues.size() > 0) {
+      System.err.println("The following block ID + data value pairs were not explicitly mapped to colors");
+      System.err.println("(this is not necessarily a problem, as the base IDs were mapped to a color):");
+      int z = 0;
+      for (int blockId : defaultedBlockIdDataValues) {
+        System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
+        System.err.print(IDUtil.blockIdString(blockId));
+        ++z;
+      }
+      System.err.println();
+    } else {
+      System.err.println("All block ID + data value pairs encountered were accounted for in the block color map.");
+    }
+    System.err.println();
+  }
+
+  private void printUnmappedBiomes(RegionRenderer rr) {
+    if (rr.defaultedBiomeIds.size() > 0) {
+      System.err.println("The following biome IDs were not explicitly mapped to colors:");
+      int z = 0;
+      for (int biomeId : rr.defaultedBiomeIds) {
+        System.err.print(z == 0 ? "  " : z % 10 == 0 ? ",\n  " : ", ");
+        System.err.print(String.format("0x%02X", biomeId));
+        ++z;
+      }
+      System.err.println();
+    } else {
+      System.err.println("All biome IDs encountered were accounted for in the biome color map.");
+    }
+  }
+
+  private void printTimings(RegionRenderer rr) {
+    final RegionRenderer.Timer tim = rr.timer;
+    System.err.println("Rendered " + tim.regionCount + " regions, " + tim.sectionCount + " sections in " + (tim.total) + "ms");
+    System.err.println("The following times lines indicate milliseconds total, per region, and per section");
+    System.err.println(tim.formatTime("Loading", tim.regionLoading));
+    System.err.println(tim.formatTime("Pre-rendering", tim.preRendering));
+    System.err.println(tim.formatTime("Post-processing", tim.postProcessing));
+    System.err.println(tim.formatTime("Image saving", tim.imageSaving));
+    System.err.println(tim.formatTime("Total", tim.total));
+    System.err.println();
   }
 
   public static final String USAGE =
@@ -212,4 +253,17 @@ class RegionRendererCommand {
       "\n" +
       "Compound image tree blobs will be written to ~/.ccouch/data/tmcmr/\n" +
       "Compound images can then be rendered with PicGrid.";
+
+  private static class BlockIdComparator implements Comparator<Integer> {
+    public int compare(Integer o1, Integer o2) {
+      o1 = repack(o1);
+      o2 = repack(o2);
+      return o1.compareTo(o2);
+    }
+
+    private Integer repack(Integer i) {
+      i = (i>>16 & 0xF) | ((i&0xffff)<<4);
+      return i;
+    }
+  }
 }

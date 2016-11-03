@@ -319,7 +319,8 @@ public class RegionRenderer
 		return pad( ""+v, targetLength );
 	}
 		
-	public void renderAll( RegionMap rm, File outputDir, boolean force ) throws IOException {
+	public void renderAll(RegionMap rm) throws IOException {
+		File outputDir = rendererCommand.outputDir;
 		long startTime = System.currentTimeMillis();
 		
 		if( !outputDir.exists() ) outputDir.mkdirs();
@@ -337,7 +338,7 @@ public class RegionRenderer
 			File imageFile = r.imageFile = new File( outputDir+"/"+imageFilename );
 			
 			if( imageFile.exists() ) {
-				if( !force && imageFile.lastModified() > r.regionFile.lastModified() ) {
+				if( !rendererCommand.forceReRender && imageFile.lastModified() > r.regionFile.lastModified() ) {
 					debugMessage("image already up-to-date\n");
 					continue;
 				}

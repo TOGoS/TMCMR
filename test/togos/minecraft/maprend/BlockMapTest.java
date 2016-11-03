@@ -1,12 +1,13 @@
 package togos.minecraft.maprend;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.StringReader;
 
-import static junit.framework.Assert.*;
+import static org.junit.Assert.*;
 
 public class BlockMapTest {
 
