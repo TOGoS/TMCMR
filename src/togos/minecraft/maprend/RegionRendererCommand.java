@@ -17,6 +17,8 @@ class RegionRendererCommand {
   boolean createBigImage = false;
   BoundingRect regionLimitRect = BoundingRect.INFINITE;
   public boolean overlayGrid = false;
+  public boolean showAir = false;
+  public boolean showTorches = false;
   public boolean showDiamonds = false;
 
   private int argIndex;
@@ -55,6 +57,8 @@ class RegionRendererCommand {
       || doArg("-debug", () -> debug = true)
       || doArg("-grid", () -> overlayGrid = true)
       || doArg("-D", () -> showDiamonds = true)
+      || doArg("-A", () -> showAir = true)
+      || doArg("-T", () -> showTorches = true)
       || doArg("-create-tile-html", () -> createTileHtml = true)
       || doArg("-create-image-tree", () -> createImageTree = true)
       || doArg("-create-big-image", () -> createBigImage = true)
@@ -238,6 +242,8 @@ class RegionRendererCommand {
       "  -grid  ; Overlay a 100x100 grid on the map.\n" +
       "  -debug ; be chatty\n" +
       "  -D     ; show diamonds\n" +
+      "  -A     ; show underground air\n" +
+      "  -T     ; show torches\n" +
       "  -color-map <file>  ; load a custom color map from the specified file\n" +
       "  -biome-map <file>  ; load a custom biome color map from the specified file\n" +
       "  -create-tile-html  ; generate tiles.html in the output directory\n" +

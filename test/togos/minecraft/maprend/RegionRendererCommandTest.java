@@ -56,7 +56,7 @@ public class RegionRendererCommandTest {
   public void flagArguments() throws Exception {
     extractAndAssertValidArgs("in -o out -f " +
       "-debug -create-tile-html -create-image-tree " +
-      "-create-big-image -h -grid -D");
+      "-create-big-image -h -grid -D -A -T");
     assertTrue(main.forceReRender);
     assertTrue(main.debug);
     assertTrue(main.createTileHtml);
@@ -65,6 +65,8 @@ public class RegionRendererCommandTest {
     assertTrue(main.printHelpAndExit);
     assertTrue(main.overlayGrid);
     assertTrue(main.showDiamonds);
+    assertTrue(main.showAir);
+    assertTrue(main.showTorches);
   }
 
   @Test
