@@ -461,7 +461,7 @@ public class RegionRenderer {
 
         final int dIdx = 512 * (cz * 16 + z) + 16 * cx + x;
         colors[dIdx] = buriedAir ? 0xFFFFFFFF : pixelColor;
-        colors[dIdx] = torch ? 0xFFFFFF00 : colors[dIdx];
+        colors[dIdx] = torch ? 0xFFFF0000 : colors[dIdx];
         colors[dIdx] = diamond ? 0xFF00FFFF : colors[dIdx];
         heights[dIdx] = pixelHeight;
       }
