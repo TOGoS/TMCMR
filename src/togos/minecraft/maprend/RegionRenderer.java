@@ -480,7 +480,8 @@ public class RegionRenderer
 				try {
 					w.write("<html><head>\n");
 					w.write("<title>"+mapTitle+" - 1:"+scale+"</title>\n");
-					w.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"tiles.css\"/><body>\n");
+					w.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"tiles.css\"/>\n");
+					w.write("</head><body>\n");
 					w.write("<div style=\"height: "+(maxZ-minZ+1)*regionSize+"px\">");
 					
 					for( int z=minZ; z<=maxZ; ++z ) {
