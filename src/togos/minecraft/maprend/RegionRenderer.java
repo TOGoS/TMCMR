@@ -495,7 +495,7 @@ public class RegionRenderer
 								String title = "Region "+x+", "+z;
 								String style =
 									"width: "+regionSize+"px; height: "+regionSize+"px; "+
-									"position: absolute; top: "+top+"; left: "+left+"; "+
+									"position: absolute; top: "+top+"px; left: "+left+"px; "+
 									"background-image: url("+scaledImageFilename+")";
 								w.write("<a\n"+
 									"\tclass=\"tile\"\n"+
