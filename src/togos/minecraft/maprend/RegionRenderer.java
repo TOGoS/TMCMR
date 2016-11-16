@@ -493,6 +493,7 @@ public class RegionRenderer
 							if( imageFile.exists() ) {
 								int top = (z-minZ) * regionSize, left = (x-minX) * regionSize;
 								String title = "Region "+x+", "+z;
+								String name = "r."+x+"."+z;
 								String style =
 									"width: "+regionSize+"px; height: "+regionSize+"px; "+
 									"position: absolute; top: "+top+"px; left: "+left+"px; "+
@@ -501,6 +502,7 @@ public class RegionRenderer
 									"\tclass=\"tile\"\n"+
 									"\tstyle=\""+style+"\"\n"+
 									"\ttitle=\""+title+"\"\n"+
+									"\tname=\""+name+"\"\n"+
 									"\thref=\""+fullSizeImageFilename+"\"\n"+
 									">&nbsp;</a>");
 							}
