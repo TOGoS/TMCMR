@@ -54,7 +54,9 @@ public class RegionRenderer
          * @author jaywalker
          */
         class RenderThread extends Thread {
-            public Region r;
+            public ArrayList<Region> regions;
+            public int startIndex;
+            public int endIndex;
             public File outputDir;
             public boolean force;
 
@@ -62,15 +64,17 @@ public class RegionRenderer
 
             }
 
-            RenderThread( Region r, File outputDir, boolean force) throws IOException {
-                this.r = r;
+            RenderThread( ArrayList<Region> regions, int startIndex, int endIndex, File outputDir, boolean force) throws IOException {
+                this.regions = regions;
+                this.startIndex = startIndex;
+                this.endIndex = endIndex;
                 this.outputDir = outputDir;
                 this.force = force;
             }
 
             public void run() {
                 try {
-                    renderRegion(r, outputDir, force);
+                    renderRegions(regions, startIndex, endIndex, outputDir, force);
                 } catch (IOException e) {
                     System.err.println("Error in threaded renderer!");
                     e.printStackTrace(System.err);
@@ -408,39 +412,42 @@ public class RegionRenderer
 		
                 
                 int numRegions = rm.regions.size();
-                int curRegion = 0;
+                int firstThreadStart = 0;
+                int firstThreadEnd = numRegions / 2;
+                int secondThreadStart = firstThreadEnd + 1;
+                int secondThreadEnd = numRegions;
                 
-		while (curRegion != numRegions) {
-                    
-                    //first thread setup
-                    Thread rThread1 = new RenderThread(rm.regions.get(curRegion), outputDir, force);
-                    rThread1.start();
-                    curRegion++;
-                    System.out.println("First thread started...");
-                    
-                    //second thread setup (if needed)
-                    if (curRegion != numRegions) {
-                        Thread rThread2 = new RenderThread(rm.regions.get(curRegion), outputDir, force);
-                        rThread2.start();
-                        curRegion++;
-                        
-                        System.out.println("Second thread started...");
-                        
-                        try {
-                            rThread2.join();
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                    
-                    try {
-                        rThread1.join();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-		}
+                //first thread setup
+                Thread rThread1 = new RenderThread(rm.regions, firstThreadStart, firstThreadEnd, outputDir, force);
+                rThread1.start();
+                System.out.println("First thread started...");
+
+                //second thread setup
+                Thread rThread2 = new RenderThread(rm.regions, secondThreadStart, secondThreadEnd, outputDir, force);
+                rThread2.start();
+                System.out.println("Second thread started...");
+
+                try {
+                    rThread2.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                
+
+                try {
+                    rThread1.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+		
 		timer.total += System.currentTimeMillis() - startTime;
 	}
+        
+        public void renderRegions( ArrayList<Region> regions, int startIndex, int endIndex, File outputDir, boolean force) throws IOException {
+            for (int i = startIndex; i < endIndex; i++) {
+                renderRegion(regions.get(i), outputDir, force);
+            }
+        }
         
         public void renderRegion( Region r, File outputDir, boolean force ) throws IOException {
             if( r == null ) return; 
