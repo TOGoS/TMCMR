@@ -412,21 +412,16 @@ public class RegionRenderer
                     numThreads = numRegions;
                 }
                 
-                int curIndex = -1;
-                int regionInterval = numRegions / numThreads;
-                
+                int regionInterval = numRegions / numThreads;      
                 RenderThread[] renderThreads = new RenderThread[numThreads];
                 
                 for (int i = 0; i < numThreads; i++) {
                     renderThreads[i] = new RenderThread(rm.regions, 0, 0, outputDir, force);
-                    renderThreads[i].startIndex = curIndex + 1;
-                    curIndex += regionInterval;
-                    if (curIndex < numRegions) {
-                        renderThreads[i].endIndex = curIndex;
-                    } else {
+                    renderThreads[i].startIndex = regionInterval * i;
+                    renderThreads[i].endIndex = regionInterval * (i + 1) - 1;
+                    if (i == numThreads - 1) {
                         renderThreads[i].endIndex = numRegions - 1;
                     }
-                    System.out.println("Thread " + i + " starting on region " + renderThreads[i].startIndex + " and ending on " + renderThreads[i].endIndex);
                     renderThreads[i].start();
                 }
                 
