@@ -406,11 +406,35 @@ public class RegionRenderer
                     System.err.println("Warning: no regions found!");
 		}
 		
-		for( Region r : rm.regions ) {
-                    Thread rThread = new RenderThread(r, outputDir, force);
-                    rThread.start();
+                
+                int numRegions = rm.regions.size();
+                int curRegion = 0;
+                
+		while (curRegion != numRegions) {
+                    
+                    //first thread setup
+                    Thread rThread1 = new RenderThread(rm.regions.get(curRegion), outputDir, force);
+                    rThread1.start();
+                    curRegion++;
+                    System.out.println("First thread started...");
+                    
+                    //second thread setup (if needed)
+                    if (curRegion != numRegions) {
+                        Thread rThread2 = new RenderThread(rm.regions.get(curRegion), outputDir, force);
+                        rThread2.start();
+                        curRegion++;
+                        
+                        System.out.println("Second thread started...");
+                        
+                        try {
+                            rThread2.join();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    
                     try {
-                        rThread.join();
+                        rThread1.join();
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
