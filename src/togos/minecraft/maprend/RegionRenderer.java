@@ -48,11 +48,6 @@ public class RegionRenderer
 		}
 	}
         
-
-        /**
-         *
-         * @author jaywalker
-         */
         class RenderThread extends Thread {
             public ArrayList<Region> regions;
             public int startIndex;
@@ -410,15 +405,37 @@ public class RegionRenderer
                     System.err.println("Warning: no regions found!");
 		}
 		
-                
+                int numThreads = 4;
                 int numRegions = rm.regions.size();
-                int firstThreadStart = 0;
-                int firstThreadEnd = numRegions / 2;
-                int secondThreadStart = firstThreadEnd + 1;
-                int secondThreadEnd = numRegions;
+                
+                if (numRegions < numThreads) {
+                    numThreads = numRegions;
+                }
+                
+                int curIndex = -1;
+                int regionInterval = numRegions / numThreads;
+                
+                RenderThread[] renderThreads = new RenderThread[numThreads];
+                
+                for (int i = 0; i < numThreads; i++) {
+                    renderThreads[i] = new RenderThread(rm.regions, 0, 0, outputDir, force);
+                    renderThreads[i].startIndex = curIndex + 1;
+                    curIndex += regionInterval;
+                    if (curIndex < numRegions) {
+                        renderThreads[i].endIndex = curIndex;
+                    } else {
+                        renderThreads[i].endIndex = numRegions - 1;
+                    }
+                    System.out.println("Thread " + i + " starting on region " + renderThreads[i].startIndex + " and ending on " + renderThreads[i].endIndex);
+                    renderThreads[i].start();
+                }
+                
+                for (int i = 0; i < numThreads; i++) {
+                    renderThreads[i].join();
+                }
                 
                 //first thread setup
-                Thread rThread1 = new RenderThread(rm.regions, firstThreadStart, firstThreadEnd, outputDir, force);
+                /*Thread rThread1 = new RenderThread(rm.regions, firstThreadStart, firstThreadEnd, outputDir, force);
                 rThread1.start();
                 System.out.println("First thread started...");
 
@@ -438,13 +455,13 @@ public class RegionRenderer
                     rThread1.join();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
-                }
+                }*/
 		
 		timer.total += System.currentTimeMillis() - startTime;
 	}
         
         public void renderRegions( ArrayList<Region> regions, int startIndex, int endIndex, File outputDir, boolean force) throws IOException {
-            for (int i = startIndex; i < endIndex; i++) {
+            for (int i = startIndex; i <= endIndex; i++) {
                 renderRegion(regions.get(i), outputDir, force);
             }
         }
