@@ -396,7 +396,7 @@ public class RegionRenderer
 		return pad( ""+v, targetLength );
 	}
 	
-	public void renderAll( RegionMap rm, File outputDir, boolean force ) throws IOException, InterruptedException {
+	public void renderAll( RegionMap rm, File outputDir, boolean force, int numThreads) throws IOException, InterruptedException {
 		long startTime = System.currentTimeMillis();
 		
 		if( !outputDir.exists() ) outputDir.mkdirs();
@@ -405,7 +405,6 @@ public class RegionRenderer
                     System.err.println("Warning: no regions found!");
 		}
 		
-                int numThreads = 4;
                 int numRegions = rm.regions.size();
                 
                 if (numRegions < numThreads) {
@@ -428,29 +427,6 @@ public class RegionRenderer
                 for (int i = 0; i < numThreads; i++) {
                     renderThreads[i].join();
                 }
-                
-                //first thread setup
-                /*Thread rThread1 = new RenderThread(rm.regions, firstThreadStart, firstThreadEnd, outputDir, force);
-                rThread1.start();
-                System.out.println("First thread started...");
-
-                //second thread setup
-                Thread rThread2 = new RenderThread(rm.regions, secondThreadStart, secondThreadEnd, outputDir, force);
-                rThread2.start();
-                System.out.println("Second thread started...");
-
-                try {
-                    rThread2.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                
-
-                try {
-                    rThread1.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }*/
 		
 		timer.total += System.currentTimeMillis() - startTime;
 	}
@@ -655,6 +631,7 @@ public class RegionRenderer
 		"  -max-altitude-shading <x>       ; highest altitude shading modifier [20]\n" +
 		"  -title <title>     ; title to include with maps\n" +
 		"  -scales 1:<n>,...  ; list scales at which to render\n" +
+                "  -threads <n>       ; maximum number of CPU threads to use for rendering\n" +
 		"\n" +
 		"Input files may be 'region/' directories or individual '.mca' files.\n" +
 		"\n" +
@@ -731,7 +708,13 @@ public class RegionRenderer
 						}
 					}
 					m.mapScales = invScales;
-				} else {
+				} else if( "-threads".equals(args[i]) ) {
+                                        m.numThreads = Integer.parseInt(args[++i]);
+                                        if (m.numThreads < 1) {
+                                            m.numThreads = 1;
+                                        }
+                                        
+                                } else {
 					m.errorMessage = "Unrecognised argument: " + args[i];
 					return m;
 				}
@@ -767,6 +750,7 @@ public class RegionRenderer
 		int maxAltitudeShading = +20;
 		int altitudeShadingFactor = 36;
 		int[] mapScales = {1};
+                int numThreads = 2;
 		String mapTitle = "Regions";
 		
 		String errorMessage = null;
@@ -807,7 +791,7 @@ public class RegionRenderer
 				mapTitle, mapScales
 			);
 			
-			rr.renderAll(rm, outputDir, forceReRender);
+			rr.renderAll(rm, outputDir, forceReRender, numThreads);
 			if( debug ) {
 				final Timer tim = rr.timer;
 				System.err.println("Rendered " + tim.regionCount + " regions, " + tim.sectionCount + " sections in " + (tim.total) + "ms");
