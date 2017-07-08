@@ -47,6 +47,35 @@ public class RegionRenderer
 			return String.format("%20s: % 8d   % 8.2f   % 8.4f", name, millis, millis/(double)regionCount, millis/(double)sectionCount);
 		}
 	}
+        
+        class RenderThread extends Thread {
+            public ArrayList<Region> regions;
+            public int startIndex;
+            public int endIndex;
+            public File outputDir;
+            public boolean force;
+
+            RenderThread() {
+
+            }
+
+            RenderThread( ArrayList<Region> regions, int startIndex, int endIndex, File outputDir, boolean force) throws IOException {
+                this.regions = regions;
+                this.startIndex = startIndex;
+                this.endIndex = endIndex;
+                this.outputDir = outputDir;
+                this.force = force;
+            }
+
+            public void run() {
+                try {
+                    renderRegions(regions, startIndex, endIndex, outputDir, force);
+                } catch (IOException e) {
+                    System.err.println("Error in threaded renderer!");
+                    e.printStackTrace(System.err);
+                }
+            }
+        }
 	
 	public final Set<Integer> defaultedBlockIds = new HashSet<Integer>();
 	public final Set<Integer> defaultedBlockIdDataValues = new HashSet<Integer>();
@@ -367,81 +396,111 @@ public class RegionRenderer
 		return pad( ""+v, targetLength );
 	}
 	
-	public void renderAll( RegionMap rm, File outputDir, boolean force ) throws IOException {
+	public void renderAll( RegionMap rm, File outputDir, boolean force, int numThreads) throws IOException, InterruptedException {
 		long startTime = System.currentTimeMillis();
 		
 		if( !outputDir.exists() ) outputDir.mkdirs();
 		
 		if( rm.regions.size() == 0 ) {
-			System.err.println("Warning: no regions found!");
+                    System.err.println("Warning: no regions found!");
 		}
 		
-		for( Region r : rm.regions ) {
-			if( r == null ) continue;
-			
-			if( debug ) System.err.print("Region "+pad(r.rx, 4)+", "+pad(r.rz, 4)+"...");
-			
-			String imageFilename = "tile."+r.rx+"."+r.rz+".png";
-			File fullSizeImageFile = r.imageFile = new File( outputDir, imageFilename );
-			
-			boolean fullSizeNeedsReRender = false;
-			if( force || !fullSizeImageFile.exists() || fullSizeImageFile.lastModified() < r.regionFile.lastModified() ) {
-				fullSizeNeedsReRender = true;
-			} else {
-				if( debug ) System.err.println("image already up-to-date");
-			}
-			
-			boolean anyScalesNeedReRender = false;
-			for( int scale : mapScales ) {
-				if( scale == 1 ) continue;
-				File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
-				if( force || !f.exists() || f.lastModified() < r.regionFile.lastModified() ) {
-					anyScalesNeedReRender = true;
-				}
-			}
-			
-			BufferedImage fullSize;
-			if( fullSizeNeedsReRender ) {
-				fullSizeImageFile.delete();
-				if( debug ) System.err.println("generating "+imageFilename+"...");
-				
-				RegionFile rf = new RegionFile( r.regionFile );
-				try {
-					fullSize = render( rf );
-				} finally {
-					rf.close();
-				}
-				
-				try {
-					resetInterval();
-					ImageIO.write(fullSize, "png", fullSizeImageFile);
-					timer.imageSaving += getInterval();
-				} catch( IOException e ) {
-					System.err.println("Error writing PNG to "+fullSizeImageFile);
-					e.printStackTrace();
-				}
-				++timer.regionCount;
-			} else if( anyScalesNeedReRender ) {
-				fullSize = ImageIO.read(fullSizeImageFile);
-			} else {
-				continue;
-			}
-			
-			for( int scale : mapScales ) {
-				if( scale == 1 ) continue; // Already wrote!
-				File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
-				if( debug ) System.err.println("generating "+f+"...");
-				int size = 512 / scale;
-				BufferedImage rescaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-				Graphics2D g = rescaled.createGraphics();
-				g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-				g.drawImage(fullSize, 0, 0, size, size, 0, 0, 512, 512, null);
-				g.dispose();
-				ImageIO.write(rescaled, "png", f);
-			}
-		}
+                int numRegions = rm.regions.size();
+                
+                if (numRegions < numThreads) {
+                    numThreads = numRegions;
+                }
+                
+                int regionInterval = numRegions / numThreads;      
+                RenderThread[] renderThreads = new RenderThread[numThreads];
+                
+                for (int i = 0; i < numThreads; i++) {
+                    renderThreads[i] = new RenderThread(rm.regions, 0, 0, outputDir, force);
+                    renderThreads[i].startIndex = regionInterval * i;
+                    renderThreads[i].endIndex = regionInterval * (i + 1) - 1;
+                    if (i == numThreads - 1) {
+                        renderThreads[i].endIndex = numRegions - 1;
+                    }
+                    renderThreads[i].start();
+                }
+                
+                for (int i = 0; i < numThreads; i++) {
+                    renderThreads[i].join();
+                }
+		
 		timer.total += System.currentTimeMillis() - startTime;
 	}
+        
+        public void renderRegions( ArrayList<Region> regions, int startIndex, int endIndex, File outputDir, boolean force) throws IOException {
+            for (int i = startIndex; i <= endIndex; i++) {
+                renderRegion(regions.get(i), outputDir, force);
+            }
+        }
+        
+        public void renderRegion( Region r, File outputDir, boolean force ) throws IOException {
+            if( r == null ) return; 
+			
+            if( debug ) System.err.print("Region "+pad(r.rx, 4)+", "+pad(r.rz, 4)+"...");
+
+            String imageFilename = "tile."+r.rx+"."+r.rz+".png";
+            File fullSizeImageFile = r.imageFile = new File( outputDir, imageFilename );
+
+            boolean fullSizeNeedsReRender = false;
+            if( force || !fullSizeImageFile.exists() || fullSizeImageFile.lastModified() < r.regionFile.lastModified() ) {
+                    fullSizeNeedsReRender = true;
+            } else {
+                    if( debug ) System.err.println("image already up-to-date");
+            }
+
+            boolean anyScalesNeedReRender = false;
+            for( int scale : mapScales ) {
+                    if( scale == 1 ) continue;
+                    File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
+                    if( force || !f.exists() || f.lastModified() < r.regionFile.lastModified() ) {
+                            anyScalesNeedReRender = true;
+                    }
+            }
+
+            BufferedImage fullSize;
+            if( fullSizeNeedsReRender ) {
+                    fullSizeImageFile.delete();
+                    if( debug ) System.err.println("generating "+imageFilename+"...");
+
+                    RegionFile rf = new RegionFile( r.regionFile );
+                    try {
+                            fullSize = render( rf );
+                    } finally {
+                            rf.close();
+                    }
+
+                    try {
+                            resetInterval();
+                            ImageIO.write(fullSize, "png", fullSizeImageFile);
+                            timer.imageSaving += getInterval();
+                    } catch( IOException e ) {
+                            System.err.println("Error writing PNG to "+fullSizeImageFile);
+                            e.printStackTrace();
+                    }
+                    ++timer.regionCount;
+            } else if( anyScalesNeedReRender ) {
+                    fullSize = ImageIO.read(fullSizeImageFile);
+            } else {
+                    return;
+            }
+
+            for( int scale : mapScales ) {
+                    if( scale == 1 ) continue; // Already wrote!
+                    File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
+                    if( debug ) System.err.println("generating "+f+"...");
+                    int size = 512 / scale;
+                    BufferedImage rescaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+                    Graphics2D g = rescaled.createGraphics();
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                    g.drawImage(fullSize, 0, 0, size, size, 0, 0, 512, 512, null);
+                    g.dispose();
+                    ImageIO.write(rescaled, "png", f);
+            }
+        }
 	
 	/**
 	 * Create a "tiles.html" file containing a table with
@@ -572,6 +631,7 @@ public class RegionRenderer
 		"  -max-altitude-shading <x>       ; highest altitude shading modifier [20]\n" +
 		"  -title <title>     ; title to include with maps\n" +
 		"  -scales 1:<n>,...  ; list scales at which to render\n" +
+                "  -threads <n>       ; maximum number of CPU threads to use for rendering\n" +
 		"\n" +
 		"Input files may be 'region/' directories or individual '.mca' files.\n" +
 		"\n" +
@@ -648,7 +708,13 @@ public class RegionRenderer
 						}
 					}
 					m.mapScales = invScales;
-				} else {
+				} else if( "-threads".equals(args[i]) ) {
+                                        m.numThreads = Integer.parseInt(args[++i]);
+                                        if (m.numThreads < 1) {
+                                            m.numThreads = 1;
+                                        }
+                                        
+                                } else {
 					m.errorMessage = "Unrecognised argument: " + args[i];
 					return m;
 				}
@@ -684,6 +750,7 @@ public class RegionRenderer
 		int maxAltitudeShading = +20;
 		int altitudeShadingFactor = 36;
 		int[] mapScales = {1};
+                int numThreads = 2;
 		String mapTitle = "Regions";
 		
 		String errorMessage = null;
@@ -700,7 +767,7 @@ public class RegionRenderer
 			return getDefault(this.createImageTree, false);
 		}
 		
-		public int run() throws IOException {
+		public int run() throws IOException, InterruptedException {
 			if( errorMessage != null ) {
 				System.err.println( "Error: "+errorMessage );
 				System.err.println( USAGE );
@@ -724,7 +791,7 @@ public class RegionRenderer
 				mapTitle, mapScales
 			);
 			
-			rr.renderAll(rm, outputDir, forceReRender);
+			rr.renderAll(rm, outputDir, forceReRender, numThreads);
 			if( debug ) {
 				final Timer tim = rr.timer;
 				System.err.println("Rendered " + tim.regionCount + " regions, " + tim.sectionCount + " sections in " + (tim.total) + "ms");
@@ -792,3 +859,5 @@ public class RegionRenderer
 		System.exit( RegionRendererCommand.fromArguments( args ).run() );
 	}
 }
+
+
