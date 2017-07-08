@@ -485,6 +485,27 @@ public class RegionRenderer
 			ImageIO.write(rescaled, "png", f);
 		}
 	}
+
+	private void copyResource(String fileName, File outputDir) throws IOException {
+		File staticFile = new File(outputDir, fileName);
+		if( !staticFile.exists() ) {
+			InputStream staticFileInputStream = getClass().getResourceAsStream(fileName);
+			byte[] buffer = new byte[1024*1024];
+			try {
+				FileOutputStream staticFileOutputStream = new FileOutputStream(staticFile);
+				try {
+					int r;
+					while( (r = staticFileInputStream.read(buffer)) > 0 ) {
+						staticFileOutputStream.write(buffer, 0, r);
+					}
+				} finally {
+					staticFileOutputStream.close();
+				}
+			} finally {
+				staticFileInputStream.close();
+			}
+		}
+	}
 	
 	/**
 	 * Create a "tiles.html" file containing a table with
@@ -497,24 +518,8 @@ public class RegionRenderer
 			int regionSize = 512 / scale;
 			
 			try {
-				File cssFile = new File(outputDir, "tiles.css");
-				if( !cssFile.exists() ) {
-					InputStream cssInputStream = getClass().getResourceAsStream("tiles.css");
-					byte[] buffer = new byte[1024*1024];
-					try {
-						FileOutputStream cssOutputStream = new FileOutputStream(cssFile);
-						try {
-							int r;
-							while( (r = cssInputStream.read(buffer)) > 0 ) {
-								cssOutputStream.write(buffer, 0, r);
-							}
-						} finally {
-							cssOutputStream.close();
-						}
-					} finally {
-						cssInputStream.close();
-					}
-				}
+				copyResource("tiles.css", outputDir);
+				copyResource("tiles.js", outputDir);
 				
 				Writer w = new OutputStreamWriter(new FileOutputStream(new File(
 					outputDir,
@@ -524,7 +529,12 @@ public class RegionRenderer
 					w.write("<html><head>\n");
 					w.write("<title>"+mapTitle+" - 1:"+scale+"</title>\n");
 					w.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"tiles.css\"/>\n");
+					w.write("<script type=\"text/javascript\"" +
+						" src=\"https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js\"></script>\n");
+					w.write("<script type=\"text/javascript\" src=\"tiles.js\"></script>\n");
 					w.write("</head><body>\n");
+					w.write("<div id=\"selectedTiles\" style=\"display:none;\">");
+					w.write("<h1>Selected Tiles</h1><textarea></textarea></div>\n");
 					w.write("<div style=\"height: "+(maxZ-minZ+1)*regionSize+"px\">");
 					
 					for( int z=minZ; z<=maxZ; ++z ) {
@@ -547,7 +557,7 @@ public class RegionRenderer
 									"\tstyle=\""+style+"\"\n"+
 									"\ttitle=\""+title+"\"\n"+
 									"\tname=\""+name+"\"\n"+
-									"\thref=\""+fullSizeImageFilename+"\"\n"+
+									"\thref=\"javascript:toggleTile('"+name+"');\"\n"+
 									">&nbsp;</a>");
 							}
 						}
