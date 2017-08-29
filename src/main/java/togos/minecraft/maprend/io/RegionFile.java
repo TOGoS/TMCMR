@@ -65,9 +65,11 @@ package togos.minecraft.maprend.io;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.zip.*;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.InflaterInputStream;
 
-public class RegionFile
+public class RegionFile implements Closeable
 {
     public static final int VERSION_GZIP = 1;
     public static final int VERSION_DEFLATE = 2;
@@ -278,7 +280,8 @@ public class RegionFile
             this.format = format;
         }
 
-        public void close() {
+        @Override
+		public void close() {
             RegionFile.this.write(x, z, buf, count, format);
         }
     }
@@ -393,7 +396,8 @@ public class RegionFile
         file.writeInt(value);
     }
 
-    public void close() throws IOException {
+    @Override
+	public void close() throws IOException {
         file.close();
     }
 }
