@@ -396,8 +396,8 @@ public class RegionFile implements Closeable
         file.writeInt(value);
     }
 
-    @Override
-	public void close() throws IOException {
+	@Override
+    public void close() throws IOException {
         file.close();
     }
 }
