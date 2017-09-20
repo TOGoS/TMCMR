@@ -12,108 +12,53 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.controlsfx.control.RangeSlider;
 import org.controlsfx.dialog.CommandLinksDialog;
 import org.controlsfx.dialog.CommandLinksDialog.CommandLinksButtonType;
-import javafx.animation.TranslateTransition;
-import javafx.beans.binding.Bindings;
-import javafx.beans.value.ChangeListener;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
-import javafx.util.Duration;
 import togos.minecraft.maprend.DotMinecraft;
 import togos.minecraft.maprend.RegionRenderer;
 import togos.minecraft.maprend.RenderSettings;
-import togos.minecraft.maprend.gui.WorldRendererFX;
+import togos.minecraft.maprend.gui.MapPane;
+import togos.minecraft.maprend.gui.WorldRendererCanvas;
+import togos.minecraft.maprend.gui.decoration.DragScrollDecoration;
+import togos.minecraft.maprend.gui.decoration.SettingsOverlay;
 
 public class GuiController implements Initializable {
 
-	public WorldRendererFX	panel;
+	public WorldRendererCanvas	renderer;
 
 	@FXML
-	private Label			minHeight, maxHeight;
-
+	private BorderPane			root;
 	@FXML
-	private RangeSlider		heightSlider;
-
+	private TextField			pathField;
 	@FXML
-	private StackPane		stackPane;
+	private Button				browseButton;
 
-	@FXML
-	private ToggleButton	showButton;
-
-	@FXML
-	private VBox			rightMenu;
-
-	@FXML
-	private TextField		pathField;
-
-	@FXML
-	private Button			browseButton;
-
-	@FXML
-	BorderPane				rendererContainer;
+	protected MapPane			pane;
 
 	public GuiController() {
 	}
 
 	@Override
 	public void initialize(URL location, ResourceBundle resources) {
-		minHeight.textProperty().bind(Bindings.format("Min: %.0f", heightSlider.lowValueProperty()));
-		maxHeight.textProperty().bind(Bindings.format("Max: %.0f", heightSlider.highValueProperty()));
-
 		try {
-			panel = new WorldRendererFX(new RegionRenderer(new RenderSettings()));
-			// anchorPane.getChildren().add(panel);
-			rendererContainer.setCenter(panel);
-			// anchorPane.getChildren().clear();
-			// AnchorPane.setTopAnchor(panel, 0.0);
-			// AnchorPane.setBottomAnchor(panel, 0.0);
-			// AnchorPane.setLeftAnchor(panel, 0.0);
-			// AnchorPane.setRightAnchor(panel, 0.0);
-			panel.widthProperty().bind(rendererContainer.widthProperty());
-			panel.heightProperty().bind(rendererContainer.heightProperty());
-			rendererContainer.setPickOnBounds(true);
+			renderer = new WorldRendererCanvas(new RegionRenderer(new RenderSettings()));
+			root.setCenter(pane = new MapPane(renderer));
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
-
-		ChangeListener<? super Boolean> heightListener = (e, oldVal, newVal) -> {
-			if (oldVal && !newVal) {
-				if (e == heightSlider.lowValueChangingProperty())
-					panel.getRegionRenderer().settings.minHeight = (int) Math.round(heightSlider.lowValueProperty().getValue().doubleValue());
-				else if (e == heightSlider.highValueChangingProperty())
-					panel.getRegionRenderer().settings.maxHeight = (int) Math.round(heightSlider.highValueProperty().getValue().doubleValue());
-				panel.invalidateTextures();
-				panel.repaint();
-			}
-		};
-		heightSlider.lowValueChangingProperty().addListener(heightListener);
-		heightSlider.highValueChangingProperty().addListener(heightListener);
-
-		showButton.setOnAction(e -> {
-			if (showButton.isSelected()) {
-				// showButton.setText("Hide settings");
-				TranslateTransition transition = new TranslateTransition(Duration.millis(500), rightMenu);
-				transition.setFromX(rightMenu.getTranslateX());
-				transition.setToX(0);
-				transition.play();
-			} else {
-				// showButton.setText("Show settings");
-				TranslateTransition transition = new TranslateTransition(Duration.millis(500), rightMenu);
-				transition.setFromX(rightMenu.getTranslateX());
-				transition.setToX(rightMenu.getWidth() - 15);
-				transition.play();
-			}
-		});
+		pane.decorationLayers.add(new DragScrollDecoration(renderer.frustum));
+		pane.settingsLayers.add(new SettingsOverlay(renderer));
 	}
 
 	public void reloadWorld() {
@@ -160,7 +105,7 @@ public class GuiController implements Initializable {
 				if (!hasFilesWithEnding(path, "mca"))
 					new Alert(AlertType.WARNING, "Your selected folder seems to not contain any useful files." + (hasFilesWithEnding(path, "mcr")
 							? " It does contain some region files in the old format though, please open this world in a newer version of Minecraft to automatically convert them." : "")).showAndWait();
-				panel.loadWorld(path.toFile());
+				renderer.loadWorld(path.toFile());
 			} else
 				new Alert(AlertType.ERROR, "Folder does not exist", ButtonType.OK).showAndWait();
 		} catch (InvalidPathException e) {

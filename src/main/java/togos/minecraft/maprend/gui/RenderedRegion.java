@@ -130,14 +130,14 @@ public class RenderedRegion {
 	}
 
 	public static boolean isVisible(Vector2ic position, int level, AABBd frustum) {
-		int size = WorldRendererFX.pow2(512, -level);
+		int size = WorldRendererCanvas.pow2(512, -level);
 		return frustum.testAABB(new AABBd(position.x() * size, position.y() * size, 0, (position.x() + 1) * size, (position.y() + 1) * size, 0));
 	}
 
 	public void draw(GraphicsContext gc, int drawingLevel, AABBd frustum, double scale) {
 		// bounds must have been checked here
 
-		int size = WorldRendererFX.pow2(512, -this.level);
+		int size = WorldRendererCanvas.pow2(512, -this.level);
 		final int overDraw = 3; // TODO make setting
 
 		WritableImage image = this.image.getImage(false);

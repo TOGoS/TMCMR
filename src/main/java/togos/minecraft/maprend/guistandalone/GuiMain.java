@@ -5,7 +5,6 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 
 public class GuiMain extends Application {
@@ -13,7 +12,6 @@ public class GuiMain extends Application {
 	private GuiController controller;
 
 	public GuiMain() {
-
 	}
 
 	@Override
@@ -26,13 +24,11 @@ public class GuiMain extends Application {
 
 		stage.setScene(new Scene(root, 500, 350));
 		stage.show();
-
-		AnchorPane.setTopAnchor(root.lookup("#rightMenu"), root.lookup("#showButton").getBoundsInLocal().getHeight() + 5);
 	}
 
 	@Override
 	public void stop() {
-		controller.panel.shutDown();
+		controller.renderer.shutDown();
 	}
 
 	public static void main(String[] args) {
