@@ -6,3 +6,4 @@ TMCMR.jar
 .idea
 .settings
 data
+/target/

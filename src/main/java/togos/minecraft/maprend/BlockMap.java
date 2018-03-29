@@ -6,6 +6,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 
 public final class BlockMap
@@ -127,7 +128,11 @@ public final class BlockMap
 	
 	public static BlockMap loadDefault() {
 		try {
-			BufferedReader br = new BufferedReader(new InputStreamReader(BlockMap.class.getResourceAsStream("block-colors.txt")));
+			InputStream inputStream = BlockMap.class.getResourceAsStream("block-colors.txt");
+			if( inputStream == null ) {
+				throw new IOException("Failed to open internal block-colors.txt");
+			}
+			BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
 			try {
 				return load(br, "(default block colors)");
 			} finally {
