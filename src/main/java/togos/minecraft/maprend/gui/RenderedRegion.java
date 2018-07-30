@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import org.joml.AABBd;
+import org.joml.ImmutableVector2i;
 import org.joml.Vector2i;
 import org.joml.Vector2ic;
 import javafx.scene.canvas.GraphicsContext;
@@ -29,17 +30,17 @@ public class RenderedRegion {
 	// public final AtomicBoolean invalid = new AtomicBoolean(true);
 	protected final RenderedImage					image;
 	public final int								level;
-	public final Vector2ic							position;
-	public final AtomicReference<RenderingState>	valid	= new AtomicReference<RenderedRegion.RenderingState>(RenderingState.INVALID);
+	public final ImmutableVector2i					position;
+	public final AtomicReference<RenderingState>	valid	= new AtomicReference<>(RenderingState.INVALID);
 
 	public Region									region;
 
 	public RenderedRegion(RenderedMap map, Region region) {
-		this(map, 0, new Vector2i(region.rx, region.rz).toImmutable());
+		this(map, 0, new ImmutableVector2i(region.rx, region.rz));
 		this.region = region;
 	}
 
-	public RenderedRegion(RenderedMap map, int level, Vector2ic position) {
+	public RenderedRegion(RenderedMap map, int level, ImmutableVector2i position) {
 		this.map = map;
 		this.level = level;
 		this.position = position;
@@ -90,10 +91,11 @@ public class RenderedRegion {
 
 		if (level != 0 && (image == null || valid.get().isInvalid())) {
 			if (level > 0) {
-
 				// check above
 				// get above image
 				RenderedRegion above = getGround(true);
+				if (above == null)
+					System.out.println(getGround(true));
 				WritableImage aboveImage = above.getImage(true);
 				// upscale image
 				if (aboveImage != null)

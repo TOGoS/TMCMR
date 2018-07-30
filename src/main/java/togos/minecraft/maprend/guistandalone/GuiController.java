@@ -57,7 +57,7 @@ public class GuiController implements Initializable {
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
-		pane.decorationLayers.add(new DragScrollDecoration(renderer.frustum));
+		pane.decorationLayers.add(new DragScrollDecoration(renderer.viewport));
 		pane.settingsLayers.add(new SettingsOverlay(renderer));
 	}
 

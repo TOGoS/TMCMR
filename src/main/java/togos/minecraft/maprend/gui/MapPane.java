@@ -39,6 +39,6 @@ public class MapPane extends StackPane {
 		catchEvents.setPickOnBounds(true);
 		catchEvents.addEventFilter(EventType.ROOT, event -> decorationLayers.forEach(l1 -> l1.fireEvent(event)));
 
-		decorationLayers.add(new WorldRendererContainer(renderer));
+		decorationLayers.add(new CanvasContainer(renderer));
 	}
 }

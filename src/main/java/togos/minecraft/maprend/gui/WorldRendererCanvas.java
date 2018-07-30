@@ -7,10 +7,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import org.joml.Vector2dc;
 import org.joml.Vector3d;
-import org.joml.Vector3dc;
-import com.sun.glass.ui.Application;
-import com.sun.glass.ui.Robot;
 import javafx.application.Platform;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.canvas.Canvas;
@@ -24,7 +22,6 @@ import togos.minecraft.maprend.RegionRenderer;
 import togos.minecraft.maprend.gui.RenderedRegion.RenderingState;
 import togos.minecraft.maprend.io.RegionFile;
 
-@SuppressWarnings("restriction")
 public class WorldRendererCanvas extends Canvas implements Runnable {
 
 	public static final int					THREAD_COUNT	= 4;
@@ -36,9 +33,8 @@ public class WorldRendererCanvas extends Canvas implements Runnable {
 	protected final List<Future<?>>			submitted		= Collections.synchronizedList(new LinkedList<>());
 
 	protected GraphicsContext				gc				= getGraphicsContext2D();
-	protected Robot							robot			= Application.GetApplication().createRobot();
 
-	public final DisplayFrustum				frustum			= new DisplayFrustum();
+	public final DisplayViewport			viewport		= new DisplayViewport();
 
 	public WorldRendererCanvas(RegionRenderer renderer) {
 		this.renderer = Objects.requireNonNull(renderer);
@@ -50,7 +46,7 @@ public class WorldRendererCanvas extends Canvas implements Runnable {
 				try {
 					// TODO execute more often if something changes and less often if not
 					// update upscaled/downscaled images of chunks
-					if (map.updateImage(frustum.getZoomLevel(), frustum.getFrustum()))
+					if (map.updateImage(viewport.getZoomLevel(), viewport.getFrustum()))
 						repaint();
 				} catch (Throwable e) {
 					e.printStackTrace();
@@ -63,19 +59,14 @@ public class WorldRendererCanvas extends Canvas implements Runnable {
 			executor.allowCoreThreadTimeOut(true);
 		}
 
-		frustum.widthProperty.bind(widthProperty());
-		frustum.heightProperty.bind(heightProperty());
+		viewport.widthProperty.bind(widthProperty());
+		viewport.heightProperty.bind(heightProperty());
 		invalidateTextures();
-		frustum.frustumChanged();
-		frustum.repaint.addObserver((o, a) -> repaint());
+		viewport.frustumProperty.addListener(e -> repaint());
 		repaint();
 	}
 
 	public void loadWorld(File file) {
-		// regions.clear();
-		// regions = RegionMap.load(file, BoundingRect.INFINITE).regions.stream().collect(Collectors.toMap(r -> new Vector2i(r.rx, r.rz), r -> new
-		// RenderedRegion2(r)));
-		// map.clear();
 		map.clearReload(RegionMap.load(file, BoundingRect.INFINITE).regions);
 		invalidateTextures();
 	}
@@ -113,13 +104,13 @@ public class WorldRendererCanvas extends Canvas implements Runnable {
 		gc.setFill(new Color(0.2f, 0.2f, 0.6f, 1.0f));
 		gc.fillRect(0, 0, getWidth(), getHeight());
 
-		double scale = frustum.scaleProperty.get();
+		double scale = viewport.scaleProperty.get();
 		gc.save();
 		gc.scale(scale, scale);
-		Vector3dc translation = frustum.getTranslation();
+		Vector2dc translation = viewport.getTranslation();
 		gc.translate(translation.x(), translation.y());
 
-		map.draw(gc, frustum.getZoomLevel(), frustum.getFrustum(), scale);
+		map.draw(gc, viewport.getZoomLevel(), viewport.getFrustum(), scale);
 		gc.restore();
 
 		if (map.isNothingLoaded()) {
@@ -165,7 +156,7 @@ public class WorldRendererCanvas extends Canvas implements Runnable {
 	/** Returns the next Region to render */
 	protected synchronized RenderedRegion nextRegion() {
 		// In region coordinates
-		Vector3d cursorPos = new Vector3d(frustum.getMousePos()).div(frustum.scaleProperty.get()).sub(frustum.getTranslation()).div(512).sub(.5, .5, 0);
+		Vector3d cursorPos = new Vector3d(viewport.getMouseInWorld(), 0).div(512).sub(.5, .5, 0);
 
 		Comparator<RenderedRegion> comp = (a, b) -> Double.compare(new Vector3d(a.position.x(), a.position.y(), 0).sub(cursorPos).length(), new Vector3d(b.position.x(), b.position.y(), 0).sub(cursorPos).length());
 		RenderedRegion min = null;
@@ -175,7 +166,7 @@ public class WorldRendererCanvas extends Canvas implements Runnable {
 		if (min != null)
 			// min got handled by another Thread already (while we were still searching), so get a new one
 			if (!min.valid.compareAndSet(RenderingState.INVALID, RenderingState.DRAWING))
-			return nextRegion();
+				return nextRegion();
 		return min;
 	}
 

@@ -75,8 +75,8 @@ public class RenderedMap {
 
 	private final HTreeMap<Vector3ic, WritableImage>		cacheMapDisk, cacheMapDiskMem, cacheMapMem;
 
-	private Map<Vector2ic, RenderedRegion>					plainRegions		= new HashMap<>();
-	private Map<Integer, Map<Vector2ic, RenderedRegion>>	regions				= new HashMap<>();
+	private Map<ImmutableVector2i, RenderedRegion>					plainRegions		= new HashMap<>();
+	private Map<Integer, Map<ImmutableVector2i, RenderedRegion>>	regions				= new HashMap<>();
 
 	@SuppressWarnings("unchecked")
 	public RenderedMap(ScheduledExecutorService executor) {
@@ -156,7 +156,7 @@ public class RenderedMap {
 	}
 
 	public void draw(GraphicsContext gc, int level, AABBd frustum, double scale) {
-		Map<Vector2ic, RenderedRegion> map = get(level > 0 ? 0 : level);
+		Map<ImmutableVector2i, RenderedRegion> map = get(level > 0 ? 0 : level);
 		gc.setFill(new Color(0.3f, 0.3f, 0.9f, 1.0f)); // Background color
 		plainRegions.values()
 				.stream()
@@ -213,20 +213,20 @@ public class RenderedMap {
 		}
 	}
 
-	public Map<Vector2ic, RenderedRegion> get(int level) {
+	public Map<ImmutableVector2i, RenderedRegion> get(int level) {
 		// if (new Error().getStackTrace().length > 180)
 		// Sometimes, this throws a StackOverflowError, but Eclipse doesn't show when this method got called before the recursion in the stack trace. This
 		// is to catch the error prematurely in the hope of getting a full stack trace
 		// TODO this is really bad for performance, remove ASAP the bug is found and fixed
 		// throw new InternalError("Stack overflow.");
-		Map<Vector2ic, RenderedRegion> ret = regions.get(level);
+		Map<ImmutableVector2i, RenderedRegion> ret = regions.get(level);
 		try {
 			// the bug might be when requesting values on level 0 that are null (not calculated)
 			if (ret == null && level != 0) {
-				Map<Vector2ic, RenderedRegion> ret2 = new HashMap<Vector2ic, RenderedRegion>();
+				Map<ImmutableVector2i, RenderedRegion> ret2 = new HashMap<>();
 				ret = ret2;
 				// the bug might be to using abovePos() regardless of the level being zoomed in or out
-				get(level < 0 ? level + 1 : level - 1).keySet().stream().map(RenderedMap::abovePos).distinct().forEach(v -> ret2.put(v, null));
+				get(level < 0 ? level + 1 : level - 1).keySet().stream().map(RenderedMap::abovePos).map(v -> new ImmutableVector2i(v)).distinct().forEach(v -> ret2.put(v, null));
 
 				regions.put(level, ret);
 			}
@@ -251,9 +251,9 @@ public class RenderedMap {
 		return !unloaded.contains(key);
 	}
 
-	public RenderedRegion get(int level, Vector2ic position, boolean create) {
-		Map<Vector2ic, RenderedRegion> map = get(level);
-		RenderedRegion r = map.get(position);
+	public RenderedRegion get(int level, ImmutableVector2i position, boolean create) {
+		Map<ImmutableVector2i, RenderedRegion> map = get(level);
+		RenderedRegion r = map.get(new ImmutableVector2i(position));
 		if (create && r == null && level != 0 && ((level > 0 /* && plainRegions.containsKey(new Vector2i(position.x() >> level, position.y() >>
 																 * level).toImmutable()) */) || map.containsKey(position))) {
 			r = new RenderedRegion(this, level, position);
@@ -266,28 +266,28 @@ public class RenderedMap {
 		return r;
 	}
 
-	public RenderedRegion[] get(int level, Vector2ic[] belowPos, boolean create) {
+	public RenderedRegion[] get(int level, ImmutableVector2i[] belowPos, boolean create) {
 		RenderedRegion[] ret = new RenderedRegion[belowPos.length];
 		for (int i = 0; i < belowPos.length; i++)
 			ret[i] = get(level, belowPos[i], create);
 		return ret;
 	}
 
-	public static Vector2i abovePos(Vector2ic pos) {
+	public static ImmutableVector2i abovePos(Vector2ic pos) {
 		return groundPos(pos, 1);
 	}
 
-	public static Vector2i groundPos(Vector2ic pos, int levelDiff) {
-		return new Vector2i(pos.x() >> levelDiff, pos.y() >> levelDiff);
+	public static ImmutableVector2i groundPos(Vector2ic pos, int levelDiff) {
+		return new ImmutableVector2i(pos.x() >> levelDiff, pos.y() >> levelDiff);
 	}
 
-	public static Vector2i[] belowPos(Vector2ic pos) {
-		Vector2i belowPos = new Vector2i(pos.x() << 1, pos.y() << 1);
-		return new Vector2i[] {
-				new Vector2i(0, 0).add(belowPos),
-				new Vector2i(1, 0).add(belowPos),
-				new Vector2i(0, 1).add(belowPos),
-				new Vector2i(1, 1).add(belowPos)
+	public static ImmutableVector2i[] belowPos(Vector2ic pos) {
+		ImmutableVector2i belowPos = new ImmutableVector2i(pos.x() << 1, pos.y() << 1);
+		return new ImmutableVector2i[] {
+				new ImmutableVector2i(0, 0).add(belowPos),
+				new ImmutableVector2i(1, 0).add(belowPos),
+				new ImmutableVector2i(0, 1).add(belowPos),
+				new ImmutableVector2i(1, 1).add(belowPos)
 		};
 	}
 
