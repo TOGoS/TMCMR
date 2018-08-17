@@ -3,28 +3,10 @@ package togos.minecraft.maprend;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
+import java.io.*;
+import java.util.*;
 import javax.imageio.ImageIO;
-
-import org.jnbt.ByteArrayTag;
-import org.jnbt.ByteTag;
-import org.jnbt.CompoundTag;
-import org.jnbt.ListTag;
-import org.jnbt.NBTInputStream;
-import org.jnbt.Tag;
-
+import org.jnbt.*;
 import togos.minecraft.maprend.BiomeMap.Biome;
 import togos.minecraft.maprend.BlockMap.Block;
 import togos.minecraft.maprend.RegionMap.Region;
@@ -61,6 +43,7 @@ public class RegionRenderer
 			this.force = force;
 		}
 		
+		@Override
 		public void run() {
 			try {
 				for( Region reg : regions ) renderRegion(reg, outputDir, force);
@@ -74,47 +57,25 @@ public class RegionRenderer
 	public final Set<Integer> defaultedBlockIds = new HashSet<Integer>();
 	public final Set<Integer> defaultedBlockIdDataValues = new HashSet<Integer>();
 	public final Set<Integer> defaultedBiomeIds = new HashSet<Integer>();
-	public final boolean debug;
 	public final BlockMap blockMap;
 	public final BiomeMap biomeMap;
 	public final int air16Color; // Color of 16 air blocks stacked
-	public final int minHeight;
-	public final int maxHeight;
-	public final int shadingReferenceAltitude;
-	public final int altitudeShadingFactor;
-	public final int minAltitudeShading;
-	public final int maxAltitudeShading;
-	public final String mapTitle;
-	public final int[] mapScales;
 	
 	/**
 	 * Alpha below which blocks are considered transparent for purposes of shading
 	 * (i.e. blocks with alpha < this will not be shaded, but blocks below them will be)
 	 */
 	private int shadeOpacityCutoff = 0x20; 
-	
-	public RegionRenderer(
-		BlockMap blockMap, BiomeMap biomeMap, boolean debug, int minHeight, int maxHeight,
-		int shadingRefAlt, int minAltShading, int maxAltShading, int altShadingFactor,
-		String mapTitle, int[] mapScales
-	) {
-		assert blockMap != null;
-		assert biomeMap != null;
-		
-		this.blockMap = blockMap;
-		this.biomeMap = biomeMap;
-		this.air16Color = Color.overlay( 0, getColor(0, 0, 0), 16 );
-		this.debug = debug;
-		
-		this.minHeight = minHeight;
-		this.maxHeight = maxHeight;
-		this.shadingReferenceAltitude = shadingRefAlt;
-		this.minAltitudeShading = minAltShading;
-		this.maxAltitudeShading = maxAltShading;
-		this.altitudeShadingFactor = altShadingFactor;
-		
-		this.mapTitle = mapTitle;
-		this.mapScales = mapScales;
+
+	public final RenderSettings	settings;
+
+	public RegionRenderer(RenderSettings settings) throws IOException {
+		this.settings = settings;
+
+		blockMap = settings.colorMapFile == null ? BlockMap.loadDefault() : BlockMap.load(settings.colorMapFile);
+		biomeMap = settings.biomeMapFile == null ? BiomeMap.loadDefault() : BiomeMap.load(settings.biomeMapFile);
+
+		this.air16Color = Color.overlay(0, getColor(0, 0, 0), 16);
 	}
 	
 	/**
@@ -249,9 +210,11 @@ public class RegionRenderer
 				if( shade >  10 ) shade =  10;
 				if( shade < -10 ) shade = -10;
 				
-				int altShade = altitudeShadingFactor * (height[idx] - shadingReferenceAltitude) / 255;
-				if( altShade < minAltitudeShading ) altShade = minAltitudeShading;
-				if( altShade > maxAltitudeShading ) altShade = maxAltitudeShading;
+				int altShade = settings.altitudeShadingFactor * (height[idx] - settings.shadingReferenceAltitude) / 255;
+				if (altShade < settings.minAltitudeShading)
+					altShade = settings.minAltitudeShading;
+				if (altShade > settings.maxAltitudeShading)
+					altShade = settings.maxAltitudeShading;
 				
 				shade += altShade;
 				
@@ -309,15 +272,18 @@ public class RegionRenderer
 							for( int s=0; s<maxSectionCount; ++s ) {
 								int absY=s*16;
 								
-								if( absY    >= maxHeight ) continue;
-								if( absY+16 <= minHeight ) continue;
+								if (absY >= settings.maxHeight)
+									continue;
+								if (absY + 16 <= settings.minHeight)
+									continue;
 								
 								if( usedSections[s] ) {
 									short[] blockIds  = sectionBlockIds[s];
 									byte[]  blockData = sectionBlockData[s];
 									
 									for( int idx=z*16+x, y=0; y<16; ++y, idx+=256, ++absY ) {
-										if( absY < minHeight || absY >= maxHeight ) continue;
+										if (absY < settings.minHeight || absY >= settings.maxHeight)
+											continue;
 										
 										final short blockId    =  blockIds[idx];
 										final byte  blockDatum = blockData[idx];
@@ -328,7 +294,7 @@ public class RegionRenderer
 										}
 									}
 								} else {
-									if( minHeight <= absY && maxHeight >= absY+16 ) {
+									if (settings.minHeight <= absY && settings.maxHeight >= absY + 16) {
 										// Optimize the 16-blocks-of-air case:
 										pixelColor = Color.overlay( pixelColor, air16Color );
 									} else {
@@ -412,7 +378,8 @@ public class RegionRenderer
 			renderThreads.add(renderThread);
 		}
 		
-		if( debug ) System.err.println("Using "+renderThreads.size()+" render threads");
+		if (settings.debug)
+			System.err.println("Using " + renderThreads.size() + " render threads");
 		
 		for( RenderThread renderThread : renderThreads ) renderThread.start();
 		
@@ -424,7 +391,8 @@ public class RegionRenderer
 	public void renderRegion( Region r, File outputDir, boolean force ) throws IOException {
 		if( r == null ) return; 
 		
-		if( debug ) System.err.print("Region "+pad(r.rx, 4)+", "+pad(r.rz, 4)+"...");
+		if (settings.debug)
+			System.err.print("Region " + pad(r.rx, 4) + ", " + pad(r.rz, 4) + "...");
 		
 		String imageFilename = "tile."+r.rx+"."+r.rz+".png";
 		File fullSizeImageFile = r.imageFile = new File( outputDir, imageFilename );
@@ -433,11 +401,12 @@ public class RegionRenderer
 		if( force || !fullSizeImageFile.exists() || fullSizeImageFile.lastModified() < r.regionFile.lastModified() ) {
 			fullSizeNeedsReRender = true;
 		} else {
-			if( debug ) System.err.println("image already up-to-date");
+			if (settings.debug)
+				System.err.println("image already up-to-date");
 		}
 		
 		boolean anyScalesNeedReRender = false;
-		for( int scale : mapScales ) {
+		for (int scale : settings.mapScales) {
 			if( scale == 1 ) continue;
 			File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
 			if( force || !f.exists() || f.lastModified() < r.regionFile.lastModified() ) {
@@ -448,7 +417,8 @@ public class RegionRenderer
 		BufferedImage fullSize;
 		if( fullSizeNeedsReRender ) {
 			fullSizeImageFile.delete();
-			if( debug ) System.err.println("generating "+imageFilename+"...");
+			if (settings.debug)
+				System.err.println("generating " + imageFilename + "...");
 			
 			RegionFile rf = new RegionFile( r.regionFile );
 			try {
@@ -472,10 +442,11 @@ public class RegionRenderer
 			return;
 		}
 		
-		for( int scale : mapScales ) {
+		for (int scale : settings.mapScales) {
 			if( scale == 1 ) continue; // Already wrote!
 			File f = new File( outputDir, "tile."+r.rx+"."+r.rz+".1-"+scale+".png" );
-			if( debug ) System.err.println("generating "+f+"...");
+			if (settings.debug)
+				System.err.println("generating " + f + "...");
 			int size = 512 / scale;
 			BufferedImage rescaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
 			Graphics2D g = rescaled.createGraphics();
@@ -492,8 +463,9 @@ public class RegionRenderer
 	 * within the given bounds (inclusive)
 	 */
 	public void createTileHtml( int minX, int minZ, int maxX, int maxZ, File outputDir ) {
-		if( debug ) System.err.println("Writing HTML tiles...");
-		for( int scale : mapScales ) {
+		if (settings.debug)
+			System.err.println("Writing HTML tiles...");
+		for (int scale : settings.mapScales) {
 			int regionSize = 512 / scale;
 			
 			try {
@@ -522,7 +494,7 @@ public class RegionRenderer
 				)));
 				try {
 					w.write("<html><head>\n");
-					w.write("<title>"+mapTitle+" - 1:"+scale+"</title>\n");
+					w.write("<title>" + settings.mapTitle + " - 1:" + scale + "</title>\n");
 					w.write("<link rel=\"stylesheet\" type=\"text/css\" href=\"tiles.css\"/>\n");
 					w.write("</head><body>\n");
 					w.write("<div style=\"height: "+(maxZ-minZ+1)*regionSize+"px\">");
@@ -554,11 +526,11 @@ public class RegionRenderer
 					}
 					
 					w.write("</div>\n");
-					if( mapScales.length > 1 ) {
+					if (settings.mapScales.length > 1) {
 						w.write("<div class=\"scales-nav\">");
 						w.write("<p>Scales:</p>");
 						w.write("<ul>");
-						for( int otherScale : mapScales ) {
+						for (int otherScale : settings.mapScales) {
 							if( otherScale == scale ) {
 								w.write("<li>1:"+scale+"</li>");
 							} else {
@@ -583,15 +555,17 @@ public class RegionRenderer
 	}
 	
 	public void createImageTree( RegionMap rm ) {
-		if( debug ) System.err.println("Composing image tree...");
+		if (settings.debug)
+			System.err.println("Composing image tree...");
 		ImageTreeComposer itc = new ImageTreeComposer(new ContentStore());
 		System.out.println( itc.compose( rm ) );
 	}
 	
 	public void createBigImage( RegionMap rm, File outputDir) {
-		if( debug ) System.err.println( "Creating big image..." );
+		if (settings.debug)
+			System.err.println("Creating big image...");
 		BigImageMerger bic = new BigImageMerger();
-		bic.createBigImage( rm, outputDir, debug );
+		bic.createBigImage(rm, outputDir, settings.debug);
 	}
 	
 	public static final String USAGE =
@@ -762,18 +736,12 @@ public class RegionRenderer
 				return 0;
 			}
 			
-			final BlockMap colorMap = colorMapFile == null ? BlockMap.loadDefault() : 
-				BlockMap.load(colorMapFile);
-				
-			final BiomeMap biomeMap = biomeMapFile == null ? BiomeMap.loadDefault() :
-				BiomeMap.load( biomeMapFile );
-			
 			RegionMap rm = RegionMap.load(regionFiles, regionLimitRect);
-			RegionRenderer rr = new RegionRenderer(
-				colorMap, biomeMap, debug, minHeight, maxHeight,
+			RegionRenderer rr = new RegionRenderer(new RenderSettings(
+					colorMapFile, biomeMapFile, debug, minHeight, maxHeight,
 				shadingReferenceAltitude, minAltitudeShading, maxAltitudeShading, altitudeShadingFactor,
 				mapTitle, mapScales
-			);
+			));
 			
 			rr.renderAll(rm, outputDir, forceReRender, threadCount);
 			
