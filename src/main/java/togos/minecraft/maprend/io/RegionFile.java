@@ -1,9 +1,5 @@
-/*
- * Further modifications by TOGoS for use in TMCMG:
- *  - Removed use of templates, auto[un]boxing, and foreach loops
- *    to make source compatible with Java 1.4  
- *  - Added ability to write chunks in both formats (gzip and deflate)
- */
+/* Further modifications by TOGoS for use in TMCMG: - Removed use of templates, auto[un]boxing, and foreach loops to make source compatible with Java 1.4 -
+ * Added ability to write chunks in both formats (gzip and deflate) */
 
 /*
  ** 2011 January 5
@@ -16,14 +12,10 @@
  **    May you share freely, never taking more than you give.
  **/
 
-/*
- * 2011 February 16
- * 
- * This source code is based on the work of Scaevolus (see notice above).
- * It has been slightly modified by Mojang AB (constants instead of magic
- * numbers, a chunk timestamp header, and auto-formatted according to our
- * formatter template).
- */
+/* 2011 February 16
+ *
+ * This source code is based on the work of Scaevolus (see notice above). It has been slightly modified by Mojang AB (constants instead of magic numbers, a
+ * chunk timestamp header, and auto-formatted according to our formatter template). */
 
 // Interfaces with region files on the disk
 
@@ -63,12 +55,21 @@
 
 package togos.minecraft.maprend.io;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 
+@Deprecated
 public class RegionFile implements Closeable
 {
     public static final int VERSION_GZIP = 1;
@@ -127,7 +128,7 @@ public class RegionFile implements Closeable
 
             /* set up the available sector map */
             int nSectors = (int) file.length() / SECTOR_BYTES;
-            sectorFree = new ArrayList<Boolean>(nSectors);
+            sectorFree = new ArrayList<>(nSectors);
 
             for (int i = 0; i < nSectors; ++i) {
                 sectorFree.add(Boolean.TRUE);
@@ -154,7 +155,7 @@ public class RegionFile implements Closeable
             e.printStackTrace();
         }
     }
-    
+
     public File getFile() {
     	return fileName;
     }
@@ -250,16 +251,16 @@ public class RegionFile implements Closeable
 
     public DataOutputStream getChunkDataOutputStream(int x, int z) {
     	if (outOfBounds(x, z)) return null;
-    	
+
         return new DataOutputStream(new DeflaterOutputStream(getChunkOutputStream(x, z, VERSION_DEFLATE)));
     }
-    
+
     /**
-     * Returns a low-level OutputStream object that is not wrapped in
-     * compressing and DataOutputStream objects. May be useful if
-     * data to be written is already compressed.  
-     * @author TOGoS
-     */
+	 * Returns a low-level OutputStream object that is not wrapped in compressing and DataOutputStream objects. May be useful if data to be written is already
+	 * compressed.
+	 * 
+	 * @author TOGoS
+	 */
     public OutputStream getChunkOutputStream( int x, int z, int format ) {
         if (outOfBounds(x, z)) return null;
 

@@ -18,15 +18,15 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import togos.minecraft.maprend.BoundingRect;
 import togos.minecraft.maprend.RegionMap;
-import togos.minecraft.maprend.RegionRenderer;
 import togos.minecraft.maprend.gui.RenderedRegion.RenderingState;
 import togos.minecraft.maprend.io.RegionFile;
+import togos.minecraft.maprend.renderer.RegionRendererOld;
 
 public class WorldRendererCanvas extends Canvas implements Runnable {
 
 	public static final int					THREAD_COUNT	= 4;
 
-	protected RegionRenderer				renderer;
+	protected RegionRendererOld				renderer;
 	protected RenderedMap					map;
 
 	protected ScheduledThreadPoolExecutor	executor;
@@ -36,7 +36,7 @@ public class WorldRendererCanvas extends Canvas implements Runnable {
 
 	public final DisplayViewport			viewport		= new DisplayViewport();
 
-	public WorldRendererCanvas(RegionRenderer renderer) {
+	public WorldRendererCanvas(RegionRendererOld renderer) {
 		this.renderer = Objects.requireNonNull(renderer);
 
 		{// Executor
@@ -123,7 +123,7 @@ public class WorldRendererCanvas extends Canvas implements Runnable {
 		// gc.strokeRect(0, 0, getWidth() - 0, getHeight() - 0);
 	}
 
-	public RegionRenderer getRegionRenderer() {
+	public RegionRendererOld getRegionRenderer() {
 		return renderer;
 	}
 

@@ -7,3 +7,11 @@ TMCMR.jar
 .settings
 data
 /target/
+
+output/
+
+src/test/resources/minecraft\.jar
+
+src/test/resources/TestWorld1
+
+src/test/resources/TestWorld2
