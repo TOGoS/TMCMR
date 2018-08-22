@@ -16,7 +16,7 @@
 # or biome_water will be multiplied by the corresponding color of the
 # biome containing the block.
 
-default	0xFFFF00FF	0xFF00FFFF	0xFFFFFF00
+default	0xFFFF00FF	0xFFFF00FF	0xFFFF00FF
 0x00	0xFF8EB971	0xFF71A74D	0xFF0064E4	# Oceans	127	191
 0x01	0xFF91BD59	0xFF77AB2F	0xFF00A0D4	# Plains	50	173
 0x02	0xFFBFB755	0xFFAEA42A	0xFF00A0D4	# Desert	0	255

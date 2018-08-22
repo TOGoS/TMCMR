@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.imageio.ImageIO;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import togos.minecraft.maprend.Color;
@@ -21,9 +23,14 @@ import togos.minecraft.maprend.renderer.BlockColorMap;
 
 public class ColorCompiler {
 
-	public static final int MISSING = 0xFFFF00FF;
+	private static Log		log		= LogFactory.getLog(ColorCompiler.class);
+
+	public static final int	MISSING	= 0xFFFF00FF;
 
 	public static BlockColorMap compile(Path minecraftJar, Path colorInstructions) throws IOException {
+		log.info("Compiling " + colorInstructions.toAbsolutePath() + " to color map");
+		log.debug("Minecraft jar: " + minecraftJar.toAbsolutePath());
+
 		Map<Block, Integer> blockColors = new HashMap<>();
 		Set<Block> grassBlocks = new HashSet<>();
 		Set<Block> foliageBlocks = new HashSet<>();
@@ -106,18 +113,24 @@ public class ColorCompiler {
 			}
 			reader.endObject();
 		}
+		log.debug("Grass blocks " + grassBlocks);
+		log.debug("Foliage blocks " + foliageBlocks);
+		log.debug("Water blocks " + waterBlocks);
+
 		return new BlockColorMap(blockColors, grassBlocks, foliageBlocks, waterBlocks);
 	}
 
 	private static void compileTexture(String key, List<String> value, Set<Block> grassBlocks, FileSystem jarFile, Map<Block, Integer> blockColors, Set<Block> foliageBlocks, Set<Block> waterBlocks) throws IOException {
+		log.debug("Compiling texture " + key);
 		for (Block block : Block.byCompactForm("minecraft:" + key)) {
 			int color = 0;
 			if (value.get(0).equals("transparent"))
 				;
 			else if (value.get(0).equals("fixed")) {
-				if (value.get(1).equals("TODO"))
+				if (value.get(1).equals("TODO")) {
 					color = MISSING;
-				else
+					log.warn("Block " + key + " has the color 'TODO' assigned with it, please replace this");
+				} else
 					color = Integer.decode(value.get(1));
 			} else if (value.get(0).equals("texture")) {
 				color = getAverageColor(jarFile.getPath("assets/minecraft/textures/block", value.get(1)));

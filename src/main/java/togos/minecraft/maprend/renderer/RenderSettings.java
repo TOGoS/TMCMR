@@ -4,11 +4,12 @@ import java.io.File;
 
 public class RenderSettings {
 
-	public boolean	debug						= false;
-	public File		colorMapFile				= null;
-	public File		biomeMapFile				= null;
-	public int		minHeight					= Integer.MIN_VALUE;
-	public int		maxHeight					= Integer.MAX_VALUE;
+	public int		minX						= Integer.MIN_VALUE;
+	public int		maxX						= Integer.MAX_VALUE;
+	public int		minY						= Integer.MIN_VALUE;
+	public int		maxY						= Integer.MAX_VALUE;
+	public int		minZ						= Integer.MIN_VALUE;
+	public int		maxYZ						= Integer.MAX_VALUE;
 
 	/**
 	 * Above = brighter, below = darker TODO affect grass color in a more native way
@@ -31,12 +32,12 @@ public class RenderSettings {
 			int shadingRefAlt, int minAltShading, int maxAltShading, int altShadingFactor,
 			String mapTitle, int[] mapScales) {
 
-		this.colorMapFile = colorMapFile;
-		this.biomeMapFile = biomeMapFile;
-		this.debug = debug;
-
-		this.minHeight = minHeight;
-		this.maxHeight = maxHeight;
+		// this.colorMapFile = colorMapFile;
+		// this.biomeMapFile = biomeMapFile;
+		// this.debug = debug;
+		//
+		// this.minHeight = minHeight;
+		// this.maxHeight = maxHeight;
 		this.shadingReferenceAltitude = shadingRefAlt;
 		this.minAltitudeShading = minAltShading;
 		this.maxAltitudeShading = maxAltShading;

@@ -1,7 +1,7 @@
-package togos.minecraft.maprend;
+package togos.minecraft.maprend.standalone;
 
 import java.io.IOException;
-
+import togos.minecraft.maprend.RegionMap;
 import togos.minecraft.maprend.RegionMap.Region;
 import togos.minecraft.maprend.io.ContentStore;
 

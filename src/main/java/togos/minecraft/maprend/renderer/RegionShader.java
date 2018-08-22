@@ -72,6 +72,15 @@ public interface RegionShader {
 		}
 	}
 
+	public static class HeightRegionShader implements RegionShader {
+
+		@Override
+		public IntBuffer shadeRegion(RenderSettings settings, IntBuffer color, ShortBuffer height) {
+			return null;
+		}
+
+	}
+
 	public static class OpenGLRegionShader implements RegionShader {
 
 		@Override

@@ -1,8 +1,6 @@
 package togos.minecraft.maprend.renderer;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -11,6 +9,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import com.flowpowered.nbt.CompoundMap;
 import com.flowpowered.nbt.CompoundTag;
 import com.flowpowered.nbt.IntArrayTag;
@@ -26,27 +26,23 @@ import togos.minecraft.maprend.texture.ColorCompiler;
 
 public class RegionRenderer {
 
+	private static Log			log					= LogFactory.getLog(RegionRenderer.class);
+
 	/**
 	 * Alpha below which blocks are considered transparent for purposes of shading (i.e. blocks with alpha < this will not be shaded, but blocks below them will be)
 	 */
-	private int					shadeOpacityCutoff	= 0x20;							// TODO use it
+	private int					shadeOpacityCutoff	= 0x20;										// TODO use it
 
 	public final RenderSettings	settings;
 
 	protected BlockColorMap		blockColors;
 	protected BiomeColorMap		biomeColors			= BiomeColorMap.loadDefault();
 
-	public final int			air16Color			= -1;							// Color of 16 air blocks stacked TODO use it
+	public final int			air16Color			= -1;										// Color of 16 air blocks stacked TODO use it
 
 	public RegionRenderer(RenderSettings settings) {
 		this.settings = Objects.requireNonNull(settings);
-		// try {
-		// blockColors = ColorCompiler.compile(Paths.get(getClass().getResource("/minecraft.jar").toURI()),
-		// Paths.get(getClass().getResource("/block-color-instructions.json").toURI()));
 		blockColors = BlockColorMap.loadDefault();
-		// } catch (IOException | URISyntaxException e) {
-		// e.printStackTrace();
-		// }
 	}
 
 	public int[] render(RegionFile file) throws IOException {
@@ -57,7 +53,7 @@ public class RegionRenderer {
 
 		for (RegionChunk chunk : file.listExistingChunks()) {
 			try {
-				System.out.println(chunk.x + " " + chunk.z);
+				// log.debug("Rendering chunk " + chunk.x + " " + chunk.z);
 				chunk.load();
 
 				// System.out.println(chunk.readTag());
@@ -68,8 +64,10 @@ public class RegionRenderer {
 					if (root.containsKey("DataVersion")) {
 						// 1519 is the internal version number of 1.13
 						int dataVersion = ((Integer) root.get("DataVersion").getValue());
-						if (dataVersion < 1519)
+						if (dataVersion < 1519) {
+							log.warn("Skipping chunk because it is too old");
 							continue;
+						}
 						// throw new IllegalArgumentException("Only chunks saved in 1.13+ are supported. Please optimize your world in Minecraft before rendering. Maybe pre 1.13 worlds
 						// will be accepted again one day");
 					} else {
@@ -82,7 +80,7 @@ public class RegionRenderer {
 				{// Check chunk status
 					String status = ((String) level.get("Status").getValue());
 					if (!status.equals("postprocessed") && !status.equals("fullchunk") && !status.equals("mobs_spawned")) {
-						System.out.println("Skipping chunk because status is " + status);
+						log.warn("Skipping chunk because status is " + status);
 						continue;
 					}
 				}
@@ -106,8 +104,9 @@ public class RegionRenderer {
 						int color = 0;
 						height: for (byte s = 15; s >= 0; s--) {
 							if (s < lowestLoadedSection) {
+								// log.debug("Loading section " + s);
 								loadedSections[s] = renderSection(biomes, sections.get(s));
-								lowestLoadedSection--;
+								lowestLoadedSection = s;
 							}
 							if (loadedSections[s] == null) {
 								// Sector is full of air
@@ -115,10 +114,12 @@ public class RegionRenderer {
 								continue;
 							}
 							for (int y = 15; y >= 0; y--) {
-								color = Color.overlay(loadedSections[s][x | z << 4 | y << 8], color);
+								color = loadedSections[s][x | z << 4 | y << 8];
+								// color = Color.alpha_over(loadedSections[s][x | z << 4 | y << 8], color);
 								height[chunk.x << 4 | x | chunk.z << 13 | z << 9] = y | s << 4;
-								if (Color.alpha(color) > 255 - 32) // TODO use threshold
+								if (Color.alpha(color) > 0) {// TODO use threshold
 									break height;
+								}
 							}
 						}
 						// Alpha over black to get rid of remaining opacity
@@ -126,10 +127,8 @@ public class RegionRenderer {
 						color = Color.overlay(0xFF000000, color);
 						map[chunk.x << 4 | x | chunk.z << 13 | z << 9] = color;
 					}
-				System.out.println("Finished chunk " + chunk.x + " " + chunk.z);
 			} catch (Exception e) {
-				System.out.println("Skipping chunk " + e);
-				e.printStackTrace();
+				log.warn("Skipping chunk", e);
 				throw e;
 			}
 		}
@@ -176,6 +175,8 @@ public class RegionRenderer {
 
 				shade += altShade;
 
+				// color[idx] = java.awt.Color.HSBtoRGB(((height[idx] / 255f) - 64) * 2 + 64, 1, 1);
+				// color[idx] = height[idx] | height[idx] << 8 | height[idx] << 16 | 0xFF000000;
 				color[idx] = Color.shade(color[idx], (int) (shade * 8));
 			}
 		}
@@ -198,27 +199,24 @@ public class RegionRenderer {
 				.map(tag -> tag.getValue())
 				.map(map -> new Block(((StringTag) map.get("Name")).getValue(), parseBlockState((CompoundTag) map.get("Properties"))))
 				.collect(Collectors.toList());
-		// System.out.println(palette);
 
 		long[] blocks = ((LongArrayTag) section.get("BlockStates")).getValue();
 
 		int bitsPerIndex = blocks.length * 64 / 4096;
 		int[] ret = new int[16 * 16 * 16];
-		System.out.println("size " + bitsPerIndex);
-		// System.out.println("Data " + blocks.length + " " + bitsPerIndex + " " + Arrays.toString(blocks));
 
-		for (int i = 0; i < 1024; i++) {
+		for (int i = 0; i < 4096; i++) {
 			long blockIndex = extractFromLong(blocks, i, bitsPerIndex);
+
 			if (blockIndex >= palette.size()) {
 				ret[i] = 0xFF00FFFF;
 				System.out.println("Block " + i + " " + blockIndex + " was out of bounds, size " + bitsPerIndex);
 				continue;
 			}
 			Block block = palette.get((int) blockIndex);
-			// System.out.println(block);
 			int color = blockColors.getBlockColor(block);
 			if (color == ColorCompiler.MISSING)
-				System.out.println("Missing color for " + block);
+				log.warn("Missing color for " + block);
 			Biome biome = biomeColors.getBiome(biomes[i & 0xFF]);
 			if (blockColors.isGrassBlock(block))
 				color = Color.multiplySolid(color, biome.grassColor);
@@ -246,16 +244,26 @@ public class RegionRenderer {
 		return ret;
 	}
 
-	// OLD
-	// 01234012|34012340|12340123|40123401|23401234|01234012|34000000
-	// NEW
-	// 01201234|001234 34|0123 1234|01012344|01234234|01201234|34000000
+	public static long extractFromLong2(long[] blocks, int i, int bitsPerIndex) {
+		StringBuffer number = new StringBuffer();
+		// Reverse all longs, convert them to a binary string, zero pad them and concatenate them
+		for (long l : blocks)
+			number.append(RegionRenderer.convertLong(Long.reverse(l)));
+		return Long.parseLong(new StringBuilder(number.substring(i * bitsPerIndex, i * bitsPerIndex + bitsPerIndex)).reverse().toString(), 2);
+	}
+
+	public static String convertLong(long l) {
+		String s = Long.toBinaryString(l);
+		// Fancy way of zero padding :)
+		s = "0000000000000000000000000000000000000000000000000000000000000000".substring(s.length()) + s;
+		return s;
+	}
 
 	public static long extractFromLong(long[] blocks, int i, int bitsPerIndex) {
 		int startByte = (bitsPerIndex * i) >> 6; // >> 6 equals / 64
 		int endByte = (bitsPerIndex * (i + 1)) >> 6;
 		// The bit within the long where our value starts. Counting from the right LSB (!).
-		int startByteBit = ((bitsPerIndex * i)) & 63; // & 64 equals & 63
+		int startByteBit = ((bitsPerIndex * i)) & 63; // % 64 equals & 63
 		int endByteBit = ((bitsPerIndex * (i + 1))) & 63;
 
 		// Use bit shifting and & bit masking to extract bit sequences out of longs as numbers
@@ -270,83 +278,8 @@ public class RegionRenderer {
 		} else {
 			// The bit string is overlapping two longs
 			blockIndex = ((blocks[startByte] >>> startByteBit))
-					| ((blocks[endByte] << (64 - endByteBit)) >>> (64 - endByteBit - endByteBit));
+					| ((blocks[endByte] << (64 - endByteBit)) >>> (startByteBit - endByteBit));
 		}
 		return blockIndex;
-	}
-
-	public static long extractFromLongNOTWORKING(long[] blocks, int i, int bitsPerIndex) {
-		int startByte = (bitsPerIndex * i) >> 6; // >> 6 equals / 64
-		int endByte = (bitsPerIndex * (i + 1)) >> 6;
-		// The bit within the long where our value starts. Counting from the right LSB (!).
-		int startByteBit = ((bitsPerIndex * i)) & 63; // & 64 equals & 63
-		int endByteBit = ((bitsPerIndex * (i + 1))) & 63;
-
-		// Use bit shifting and & bit masking to extract bit sequences out of longs as numbers
-		// -1L is the value with every bit set
-		long blockIndex;
-		if (startByte == endByte) {
-			// Normal case: the bit string we need is within a single long
-			blockIndex = (blocks[startByte] << (64 - endByteBit)) >>> (64 + startByteBit - endByteBit);
-		} else if (endByteBit == 0) {
-			// The bit string is exactly at the beginning of a long
-			blockIndex = blocks[startByte] >>> startByteBit;
-		} else {
-			// The bit string is overlapping two longs
-			blockIndex = ((blocks[startByte] >>> startByteBit) << endByteBit)
-					| ((blocks[endByte] << (64 - endByteBit)) >>> (64 - endByteBit));
-		}
-		return blockIndex;
-	}
-
-	public static long extractFromLongWORKING(long[] blocks, int i, int bitsPerIndex) {
-		int startByte = (bitsPerIndex * i) >> 6; // >> 6 equals / 64
-		int endByte = (bitsPerIndex * (i + 1)) >> 6;
-		// The bit within the long where our value starts. Counting from the left MSB (!).
-		int startByteBit = (bitsPerIndex * i) & 63; // & 64 equals & 63
-		int endByteBit = (bitsPerIndex * (i + 1)) & 63;
-
-		// Use bit shifting and & bit masking to extract bit sequences out of longs as numbers
-		// -1L is the value with every bit set
-		long blockIndex;
-		if (startByte == endByte) {
-			// Normal case: the bit string we need is within a single long
-			blockIndex = (blocks[startByte] << startByteBit) >>> (64 - endByteBit + startByteBit);
-		} else if (endByteBit == 0) {
-			// The bit string is exactly at the end of a long
-			blockIndex = blocks[startByte] & (-1L >>> (64 - bitsPerIndex));
-		} else {
-			// The bit string is overlapping two longs
-			blockIndex = (((blocks[startByte] << startByteBit) >>> startByteBit) << endByteBit)
-					| (blocks[endByte] >>> (64 - endByteBit));
-		}
-		return blockIndex;
-	}
-
-	public static long extractFromLong5(long[] blocks, int i, int bitsPerIndex) {
-		return longToShort(blocks)[i];
-	}
-
-	public static Integer[] longToShort(long[] long_array) {
-		int bits_per_value = (long_array.length * 64) / 4096;
-		byte[] b = new byte[long_array.length * 8];
-		ByteBuffer buffer = ByteBuffer.wrap(b);
-		for (long l : long_array)
-			buffer.putLong(l);
-
-		List<Integer> result = new ArrayList<>(long_array.length / bits_per_value);
-		for (int i = 0; i < b.length;) {
-			// Assume 5 bits
-			result.add(b[i] & 0x1f);
-			result.add(((b[i + 1] & 0x03) << 3) | ((b[i] & 0xe0) >> 5));
-			result.add((b[i + 1] & 0x7c) >> 2);
-			result.add(((b[i + 2] & 0x0f) << 1) | ((b[i + 1] & 0x80) >> 7));
-			result.add(((b[i + 3] & 0x01) << 4) | ((b[i + 2] & 0xf0) >> 4));
-			result.add((b[i + 3] & 0x3e) >> 1);
-			result.add(((b[i + 4] & 0x07) << 2) | ((b[i + 3] & 0xc0) >> 6));
-			result.add((b[i + 4] & 0xf8) >> 3);
-			i += 5;
-		}
-		return result.toArray(new Integer[0]);
 	}
 }
