@@ -1,17 +1,11 @@
-out
 *.iml
-bin
+/bin/
 .src.lst
-TMCMR.jar
-.idea
-.settings
-data
-/target/
 
-output/
-
-src/test/resources/minecraft\.jar
-
-src/test/resources/TestWorld1
-
-src/test/resources/TestWorld2
+/BlockMap-generator/src/test/resources/minecraft\.jar
+/BlockMap-core/src/test/resources/TestWorld1
+/BlockMap-core/src/test/resources/TestWorld2
+**/build/
+**/bin/
+**/output/
+\.gradle/

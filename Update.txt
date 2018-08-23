@@ -1,7 +1,0 @@
-Things to do when updating to a new version:
-
-- Copy ${.minecraft}/versions/${version}/${version}.jar to ./src/test/resources/
-- Create new Debug world in Minecraft, call it "Debug", load it and copy it to ./src/test/resources/
-- Run all the tests
-- Fix ./src/main/resources/block-color-instructions.json and everything else until all tests pass. Update the tests if necessary
-- Compile a new color map to TODO
