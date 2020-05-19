@@ -85,6 +85,7 @@ public class RegionFile
     private ArrayList<Boolean> sectorFree;
     private int sizeDelta;
     private long lastModified = 0;
+    private Boolean anvil_format;
 
     public RegionFile(File path) {
         offsets = new int[SECTOR_INTS];
@@ -248,7 +249,7 @@ public class RegionFile
 
     public DataOutputStream getChunkDataOutputStream(int x, int z) {
     	if (outOfBounds(x, z)) return null;
-    	
+
         return new DataOutputStream(new DeflaterOutputStream(getChunkOutputStream(x, z, VERSION_DEFLATE)));
     }
     
@@ -395,5 +396,15 @@ public class RegionFile
 
     public void close() throws IOException {
         file.close();
+    }
+
+    public boolean isAnvilFormat() {
+		if(anvil_format == null) {
+			String path = fileName.getPath();
+			boolean value = path.charAt(path.length() - 1) == 'a';
+			anvil_format = Boolean.valueOf(value);
+			return value;
+		}
+		return anvil_format.booleanValue();
     }
 }
