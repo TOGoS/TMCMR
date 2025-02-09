@@ -50,7 +50,7 @@ Input files may be 'region/' directories or individual '.mca' files.
 
 tiles.html will always be generated if a single directory is given as input.
 
-Compound image tree blobs will be written to ~/.ccouch/data/tmcmr/
+Compound image tree blobs will be written to `~/.ccouch/data/tmcmr/`.
 Compound images can then be rendered with [PicGrid](https://github.com/TOGoS/PicGrid).
 
 ## Contributing
