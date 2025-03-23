@@ -137,7 +137,7 @@ public class RegionRenderer
 	 * @param sectionBlockData block data for non-empty sections will be written to sectionBlockData[sectionIndex][blockIndex]
 	 * @param sectionsUsed sectionsUsed[sectionIndex] will be set to true for non-empty sections
 	 */
-	protected static void loadChunkData( CompoundTag levelTag, int maxSectionCount, short[][] sectionBlockIds, byte[][] sectionBlockData, boolean[] sectionsUsed, byte[] biomeIds ) {
+	protected static void loadAnvilChunkData( CompoundTag levelTag, int maxSectionCount, short[][] sectionBlockIds, byte[][] sectionBlockData, boolean[] sectionsUsed, byte[] biomeIds ) {
 		for( int i=0; i<maxSectionCount; ++i ) {
 			sectionsUsed[i] = false;
 		}
@@ -179,9 +179,23 @@ public class RegionRenderer
 			}
 		}
 	}
-	
+
+	private static void loadOldChunkData( CompoundTag level_tag, byte[] block_types, byte[] block_data ) {
+		McRegionChunkData cd = McRegionChunkData.fromTag(level_tag);
+		System.arraycopy(cd.blocks, 0, block_types, 0, 16 * 16 * 128);
+		for( int z=0; z<16; z++ ) {
+			for( int x=0; x<16; x++ ) {
+				for( int y=0; y<128; y++ ) {
+					int block_index = y + z*128 + x*16*128;
+					//if(block_types[block_index] == 0) continue;
+					block_data[block_index] = nybble( cd.block_data, block_index );
+				}
+			}
+		}
+	}
+
 	//// Color look-up ////
-	
+
 	protected void defaultedBlockColor( int blockId ) {
 		defaultedBlockIds.add(blockId);
 	}
@@ -266,7 +280,11 @@ public class RegionRenderer
 	protected long startTime;
 	protected void resetInterval() { startTime = System.currentTimeMillis(); }
 	protected long getInterval() { return System.currentTimeMillis() - startTime; }
-	
+
+	private static int correct_signed_byte(byte n) {
+		return n < 0 ? n + 256 : n;
+	}
+
 	/**
 	 * Load color and height data from a region.
 	 * @param rf
@@ -274,12 +292,29 @@ public class RegionRenderer
 	 * @param heights height data (height of top of topmost non-transparent block) will be written here
 	 */
 	protected void preRender( RegionFile rf, int[] colors, short[] heights ) {
-		int maxSectionCount = 16;
-		short[][] sectionBlockIds = new short[maxSectionCount][16*16*16];
-		byte[][] sectionBlockData = new byte[maxSectionCount][16*16*16];
-		boolean[] usedSections = new boolean[maxSectionCount];
-		byte[] biomeIds = new byte[16*16];
-		
+		final int maxSectionCount = 16;
+		short[][] sectionBlockIds;
+		byte[][] sectionBlockData;
+		boolean[] usedSections;
+		byte[] biomeIds;
+		byte[] old_block_ids;
+		byte[] old_block_data;
+		if(rf.isAnvilFormat()) {
+			sectionBlockIds = new short[maxSectionCount][16*16*16];
+			sectionBlockData = new byte[maxSectionCount][16*16*16];
+			usedSections = new boolean[maxSectionCount];
+			biomeIds = new byte[16*16];
+			old_block_ids = null;
+			old_block_data = null;
+		} else {
+			sectionBlockIds = null;
+			sectionBlockData = null;
+			usedSections = null;
+			biomeIds = null;
+			old_block_ids = new byte[16*16*128];
+			old_block_data = new byte[16*16*128];
+		}
+
 		for( int cz=0; cz<32; ++cz ) {
 			for( int cx=0; cx<32; ++cx ) {				
 				resetInterval();
@@ -290,53 +325,69 @@ public class RegionRenderer
 					nis = new NBTInputStream(cis);
 					CompoundTag rootTag = (CompoundTag)nis.readTag();
 					CompoundTag levelTag = (CompoundTag)rootTag.getValue().get("Level");
-					loadChunkData( levelTag, maxSectionCount, sectionBlockIds, sectionBlockData, usedSections, biomeIds );
+					if(rf.isAnvilFormat()) {
+						loadAnvilChunkData( levelTag, maxSectionCount, sectionBlockIds, sectionBlockData, usedSections, biomeIds );
+					} else {
+						loadOldChunkData(levelTag, old_block_ids, old_block_data);
+					}
 					timer.regionLoading += getInterval();
-					
-					for( int s=0; s<maxSectionCount; ++s ) {
+
+					if(rf.isAnvilFormat()) for( int s=0; s<maxSectionCount; ++s ) {
 						if( usedSections[s] ) {
 							++timer.sectionCount;
 						}
 					}
-					
+
 					resetInterval();
 					for( int z=0; z<16; ++z ) {
 						for( int x=0; x<16; ++x ) {
 							int pixelColor = 0;
 							short pixelHeight = 0;
-							int biomeId = biomeIds[z*16+x]&0xFF;
-							
-							for( int s=0; s<maxSectionCount; ++s ) {
-								int absY=s*16;
-								
-								if( absY    >= maxHeight ) continue;
-								if( absY+16 <= minHeight ) continue;
-								
-								if( usedSections[s] ) {
-									short[] blockIds  = sectionBlockIds[s];
-									byte[]  blockData = sectionBlockData[s];
-									
-									for( int idx=z*16+x, y=0; y<16; ++y, idx+=256, ++absY ) {
-										if( absY < minHeight || absY >= maxHeight ) continue;
-										
-										final short blockId    =  blockIds[idx];
-										final byte  blockDatum = blockData[idx];
-										int blockColor = getColor( blockId&0xFFFF, blockDatum, biomeId );
-										pixelColor = Color.overlay( pixelColor, blockColor );
-										if( Color.alpha(blockColor) >= shadeOpacityCutoff  ) {
-											pixelHeight = (short)absY;
+
+							if(rf.isAnvilFormat()) {
+								int biomeId = biomeIds[z*16+x]&0xFF;
+								for( int s=0; s<maxSectionCount; ++s ) {
+									int absY=s*16;
+
+									if( absY    >= maxHeight ) continue;
+									if( absY+16 <= minHeight ) continue;
+
+									if( usedSections[s] ) {
+										short[] blockIds  = sectionBlockIds[s];
+										byte[]  blockData = sectionBlockData[s];
+
+										for( int idx=z*16+x, y=0; y<16; ++y, idx+=256, ++absY ) {
+											if( absY < minHeight || absY >= maxHeight ) continue;
+
+											final short blockId    =  blockIds[idx];
+											final byte  blockDatum = blockData[idx];
+											int blockColor = getColor( blockId&0xFFFF, blockDatum, biomeId );
+											pixelColor = Color.overlay( pixelColor, blockColor );
+											if( Color.alpha(blockColor) >= shadeOpacityCutoff  ) {
+												pixelHeight = (short)absY;
+											}
+										}
+									} else {
+										if( minHeight <= absY && maxHeight >= absY+16 ) {
+											// Optimize the 16-blocks-of-air case:
+											pixelColor = Color.overlay( pixelColor, air16Color );
+										} else {
+											// TODO: mix
 										}
 									}
-								} else {
-									if( minHeight <= absY && maxHeight >= absY+16 ) {
-										// Optimize the 16-blocks-of-air case:
-										pixelColor = Color.overlay( pixelColor, air16Color );
-									} else {
-										// TODO: mix
-									}
+								}
+							} else for( int idx=z*128 + x*16*128, y=0; y<128; y++, idx++ ) {
+								if( y < minHeight ) continue;
+								if( y >= maxHeight ) break;
+								final int blockId    = correct_signed_byte(old_block_ids[idx]);
+								final int blockDatum = correct_signed_byte(old_block_data[idx]);
+								int blockColor = getColor(blockId, blockDatum, 1);
+								pixelColor = Color.overlay( pixelColor, blockColor );
+								if( Color.alpha(blockColor) >= shadeOpacityCutoff ) {
+									pixelHeight = (short)y;
 								}
 							}
-							
+
 							final int dIdx = 512*(cz*16+z)+16*cx+x; 
 							colors[dIdx] = pixelColor;
 							heights[dIdx] = pixelHeight;
@@ -385,11 +436,11 @@ public class RegionRenderer
 		while( v.length() < targetLength ) v = " "+v;
 		return v;
 	}
-	
+
 	protected static String pad( int v, int targetLength ) {
-		return pad( ""+v, targetLength );
+		return pad( String.valueOf(v), targetLength );
 	}
-	
+
 	public void renderAll( RegionMap rm, File outputDir, boolean force, int threadCount ) throws IOException, InterruptedException {
 		final long startTime = System.currentTimeMillis();
 		
@@ -617,7 +668,7 @@ public class RegionRenderer
 		"  -scales 1:<n>,...  ; list scales at which to render\n" +
 		"  -threads <n>       ; maximum number of CPU threads to use for rendering\n" +
 		"\n" +
-		"Input files may be 'region/' directories or individual '.mca' files.\n" +
+		"Input files may be 'region/' directories, individual '.mca' or '.mcr' files.\n" +
 		"\n" +
 		"tiles.html will always be generated if a single directory is given as input.\n" +
 		"\n" +

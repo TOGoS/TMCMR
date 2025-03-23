@@ -31,16 +31,37 @@ public class RegionMap
 		if( r.rx >= maxX ) maxX = r.rx+1;
 		if( r.rz >= maxZ ) maxZ = r.rz+1;
 	}
-		
-	static final Pattern rfpat = Pattern.compile("^r\\.(-?\\d+)\\.(-?\\d+)\\.mca$");
-	
+
+	private void removeOldRegionFiles() {
+		int i = regions.size() - 1;
+		while( i >= 0 ) {
+			String path = regions.get(i).regionFile.getPath();
+			int len = path.length();
+			if( len > 4 && path.regionMatches(len - 4, ".mcr", 0, 4) ) {
+				regions.remove(i);
+				if(i < regions.size()) continue;
+			}
+			i--;
+		}
+	}
+
+	static final Pattern rfpat = Pattern.compile("^r\\.(-?[0-9]+)\\.(-?[0-9]+)\\.(mc[ar])$");
+	static final Pattern arfpat = Pattern.compile("^r\\.(-?[0-9]+)\\.(-?[0-9]+)\\.mca$");
+
 	protected void add( File dir, BoundingRect limit ) {
 		Matcher m;
 		if( dir.isDirectory() ) { 
+			boolean anvil_only = false;
 			File[] files = dir.listFiles();
 			for( int i=0; i<files.length; ++i ) {
-				m = rfpat.matcher(files[i].getName());
-				if( m.matches() ) add( files[i], limit );
+				m = (anvil_only ? arfpat : rfpat).matcher(files[i].getName());
+				if( m.matches() ) {
+					if( !anvil_only && m.group(3).equals("mca") ) {
+						anvil_only = true;
+						removeOldRegionFiles();
+					}
+					add( files[i], limit );
+				}
 			}
 		} else if( (m = rfpat.matcher(dir.getName())).matches() ) {
 			if( !dir.exists() ) {
